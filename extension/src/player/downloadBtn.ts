@@ -31,11 +31,9 @@ export class DownloadButton {
     this.element.classList.toggle('yt2pp-show-progress', showProgressLabel);
 
     this.element.innerHTML = `
-      <span class="yt2pp-btn-surface">
-        <span class="yt2pp-btn-progress-fill" style="transform: scaleX(${progressScale.toFixed(4)})"></span>
-        ${showProgressLabel ? `<span class="yt2pp-btn-progress-label">${progressLabel}</span>` : ''}
-        ${ICON_DOWNLOAD}
-      </span>
+      <span class="yt2pp-btn-progress-fill" style="transform: scaleX(${progressScale.toFixed(4)})"></span>
+      ${showProgressLabel ? `<span class="yt2pp-btn-progress-label">${progressLabel}</span>` : ''}
+      ${ICON_DOWNLOAD}
       <div class="yt2pp-tooltip">Download Video</div>
     `;
   }

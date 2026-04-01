@@ -18,14 +18,15 @@ export class ClipMarkers {
 
     this.inBtn = document.createElement('button');
     this.inBtn.className = 'ytp-button yt2pp-btn yt2pp-in-btn';
+    this.inBtn.title = 'Set clip IN point';
+    this.inBtn.innerHTML = ICON_IN;
     this.inBtn.addEventListener('click', () => this.setIn());
 
     this.outBtn = document.createElement('button');
     this.outBtn.className = 'ytp-button yt2pp-btn yt2pp-out-btn';
+    this.outBtn.title = 'Set clip OUT point';
+    this.outBtn.innerHTML = ICON_OUT;
     this.outBtn.addEventListener('click', () => this.setOut());
-
-    this.renderButton(this.inBtn, ICON_IN, 'Set clip IN point');
-    this.renderButton(this.outBtn, ICON_OUT, 'Set clip OUT point');
   }
 
   getInElement(): HTMLButtonElement {
@@ -44,22 +45,13 @@ export class ClipMarkers {
     return this.outTime;
   }
 
-  private renderButton(button: HTMLButtonElement, icon: string, tooltip: string) {
-    button.title = tooltip;
-    button.innerHTML = `
-      <span class="yt2pp-btn-surface">
-        ${icon}
-      </span>
-      <div class="yt2pp-tooltip">${tooltip}</div>
-    `;
-  }
-
   private setIn() {
     const video = getVideoElement();
     if (!video) return;
     this.inTime = video.currentTime;
+    this.inBtn.title = `IN: ${formatTime(this.inTime)}`;
     this.inBtn.classList.add('yt2pp-marker-set');
-    this.renderButton(this.inBtn, ICON_IN, `IN: ${formatTime(this.inTime)}`);
+    this.inBtn.innerHTML = ICON_IN;
     this.onChange(this.inTime, this.outTime);
   }
 
@@ -67,8 +59,9 @@ export class ClipMarkers {
     const video = getVideoElement();
     if (!video) return;
     this.outTime = video.currentTime;
+    this.outBtn.title = `OUT: ${formatTime(this.outTime)}`;
     this.outBtn.classList.add('yt2pp-marker-set');
-    this.renderButton(this.outBtn, ICON_OUT, `OUT: ${formatTime(this.outTime)}`);
+    this.outBtn.innerHTML = ICON_OUT;
     this.onChange(this.inTime, this.outTime);
   }
 
@@ -77,8 +70,10 @@ export class ClipMarkers {
     this.outTime = null;
     this.inBtn.classList.remove('yt2pp-marker-set');
     this.outBtn.classList.remove('yt2pp-marker-set');
-    this.renderButton(this.inBtn, ICON_IN, 'Set clip IN point');
-    this.renderButton(this.outBtn, ICON_OUT, 'Set clip OUT point');
+    this.inBtn.innerHTML = ICON_IN;
+    this.outBtn.innerHTML = ICON_OUT;
+    this.inBtn.title = 'Set clip IN point';
+    this.outBtn.title = 'Set clip OUT point';
     this.onChange(null, null);
   }
 }
