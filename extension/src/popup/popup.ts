@@ -1,5 +1,5 @@
 import '../styles/popup.css';
-import { BACKEND_URL } from '../config';
+import { DEFAULT_SETTINGS, type ExtensionSettings } from '../api/contracts';
 
 function getAudioOnlyCheckbox() {
   return document.getElementById('audioOnly') as HTMLInputElement;
@@ -16,43 +16,47 @@ function syncToggleOptionStyles() {
   });
 }
 
+function sendRuntimeMessage<T>(message: object): Promise<T> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response: T | undefined) => {
+      const runtimeError = chrome.runtime.lastError;
+      if (runtimeError) {
+        reject(new Error(runtimeError.message));
+        return;
+      }
+
+      resolve((response ?? {}) as T);
+    });
+  });
+}
+
 async function checkStatus() {
   const dot = document.getElementById('status-dot')!;
+
   try {
-    const res = await fetch(BACKEND_URL, { signal: AbortSignal.timeout(3000) });
-    dot.className = res.ok ? 'status-dot online' : 'status-dot offline';
+    const response = await sendRuntimeMessage<{ healthy?: boolean }>({ type: 'CHECK_BACKEND_HEALTH' });
+    dot.className = response.healthy ? 'status-dot online' : 'status-dot offline';
   } catch {
     dot.className = 'status-dot offline';
   }
 }
 
-function loadSettings() {
-  chrome.storage.sync.get(
-    {
-      resolution: '1080',
-      downloadPath: '',
-      audioOnly: false,
-      downloadMP3: false,
-      videoOnly: false,
-      secondsBefore: '15',
-      secondsAfter: '15',
-    },
-    (items: Record<string, any>) => {
-      const audioOnly = Boolean(items.audioOnly ?? items.downloadMP3);
-      (document.getElementById('resolution') as HTMLSelectElement).value = items.resolution;
-      (document.getElementById('downloadPath') as HTMLInputElement).value = items.downloadPath;
-      getAudioOnlyCheckbox().checked = audioOnly;
-      getVideoOnlyCheckbox().checked = Boolean(items.videoOnly) && !audioOnly;
-      (document.getElementById('secondsBefore') as HTMLInputElement).value = items.secondsBefore;
-      (document.getElementById('secondsAfter') as HTMLInputElement).value = items.secondsAfter;
-      syncToggleOptionStyles();
-    }
-  );
+async function loadSettings() {
+  const items = await sendRuntimeMessage<ExtensionSettings>({ type: 'GET_SETTINGS' });
+  const audioOnly = Boolean(items.audioOnly ?? items.downloadMP3);
+
+  (document.getElementById('resolution') as HTMLSelectElement).value = items.resolution;
+  (document.getElementById('downloadPath') as HTMLInputElement).value = items.downloadPath;
+  getAudioOnlyCheckbox().checked = audioOnly;
+  getVideoOnlyCheckbox().checked = Boolean(items.videoOnly) && !audioOnly;
+  (document.getElementById('secondsBefore') as HTMLInputElement).value = items.secondsBefore;
+  (document.getElementById('secondsAfter') as HTMLInputElement).value = items.secondsAfter;
+  syncToggleOptionStyles();
 }
 
-function saveSettings() {
+async function saveSettings() {
   const audioOnly = getAudioOnlyCheckbox().checked;
-  const settings = {
+  const settings: ExtensionSettings = {
     resolution: (document.getElementById('resolution') as HTMLSelectElement).value,
     downloadPath: (document.getElementById('downloadPath') as HTMLInputElement).value,
     audioOnly,
@@ -62,18 +66,11 @@ function saveSettings() {
     secondsAfter: (document.getElementById('secondsAfter') as HTMLInputElement).value,
   };
 
-  chrome.storage.sync.set(settings, () => {
-    // Also sync to backend
-    fetch(`${BACKEND_URL}/settings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
-    }).catch(() => {});
+  await sendRuntimeMessage<{ success?: boolean }>({ type: 'SAVE_SETTINGS', settings });
 
-    const btn = document.getElementById('save-btn')!;
-    btn.textContent = 'Saved!';
-    setTimeout(() => (btn.textContent = 'Save Settings'), 1500);
-  });
+  const btn = document.getElementById('save-btn')!;
+  btn.textContent = 'Saved!';
+  setTimeout(() => (btn.textContent = 'Save Settings'), 1500);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -91,8 +88,21 @@ document.addEventListener('DOMContentLoaded', () => {
     syncToggleOptionStyles();
   });
 
-  checkStatus();
-  loadSettings();
-  document.getElementById('save-btn')!.addEventListener('click', saveSettings);
-  setInterval(checkStatus, 5000);
+  void checkStatus();
+  void loadSettings().catch(() => {
+    const audioOnly = DEFAULT_SETTINGS.audioOnly;
+    (document.getElementById('resolution') as HTMLSelectElement).value = DEFAULT_SETTINGS.resolution;
+    (document.getElementById('downloadPath') as HTMLInputElement).value = DEFAULT_SETTINGS.downloadPath;
+    getAudioOnlyCheckbox().checked = audioOnly;
+    getVideoOnlyCheckbox().checked = DEFAULT_SETTINGS.videoOnly && !audioOnly;
+    (document.getElementById('secondsBefore') as HTMLInputElement).value = DEFAULT_SETTINGS.secondsBefore;
+    (document.getElementById('secondsAfter') as HTMLInputElement).value = DEFAULT_SETTINGS.secondsAfter;
+    syncToggleOptionStyles();
+  });
+  document.getElementById('save-btn')!.addEventListener('click', () => {
+    void saveSettings();
+  });
+  setInterval(() => {
+    void checkStatus();
+  }, 5000);
 });

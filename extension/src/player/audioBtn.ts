@@ -1,5 +1,10 @@
 import { getVideoUrl } from '../utils/pageUtils';
-import { sendDownloadRequest } from '../api/serverApi';
+import {
+  createRequestId,
+  registerDownloadHandlers,
+  sendDownloadRequest,
+  unsubscribeFromDownload,
+} from '../api/serverApi';
 
 type ButtonState = 'idle' | 'loading' | 'progress' | 'complete' | 'error';
 
@@ -11,6 +16,7 @@ export class AudioButton {
   private state: ButtonState = 'idle';
   private isActive = false;
   private progress = 0;
+  private activeRequestId: string | null = null;
 
   constructor() {
     this.element = document.createElement('button');
@@ -53,13 +59,29 @@ export class AudioButton {
     this.render();
 
     chrome.storage.sync.get({ downloadPath: '' }, async (items) => {
+      const requestId = createRequestId();
+      this.activeRequestId = requestId;
+      registerDownloadHandlers(requestId, {
+        onProgress: (pct) => this.setProgress(pct),
+        onComplete: () => this.setComplete(),
+        onFailed: (msg) => {
+          console.error('[YT2PP] Audio download failed:', msg);
+          this.setError();
+        },
+      });
+
       const ok = await sendDownloadRequest({
+        requestId,
         videoUrl: url,
         downloadType: 'audio',
         audioOnly: true,
         downloadPath: items.downloadPath as string,
       });
       if (!ok) {
+        unsubscribeFromDownload(requestId);
+        if (this.activeRequestId === requestId) {
+          this.activeRequestId = null;
+        }
         this.setError();
       }
     });
@@ -77,6 +99,9 @@ export class AudioButton {
 
   setComplete() {
     if (!this.isActive) return;
+    if (this.activeRequestId) {
+      this.activeRequestId = null;
+    }
     this.state = 'complete';
     this.progress = 100;
     this.render();
@@ -85,11 +110,22 @@ export class AudioButton {
 
   setError() {
     if (!this.isActive) return;
+    if (this.activeRequestId) {
+      this.activeRequestId = null;
+    }
     this.state = 'error';
     this.isActive = false;
     this.progress = Math.max(this.progress, 18);
     this.render();
     setTimeout(() => this.reset(), 3000);
+  }
+
+  dispose() {
+    if (this.activeRequestId) {
+      unsubscribeFromDownload(this.activeRequestId);
+      this.activeRequestId = null;
+    }
+    this.reset();
   }
 
   private reset() {

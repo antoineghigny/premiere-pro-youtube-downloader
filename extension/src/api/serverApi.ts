@@ -1,91 +1,106 @@
-import { io, Socket } from 'socket.io-client';
-import { BACKEND_URL } from '../config';
+import type { DownloadRequest } from './contracts';
 
-let socket: Socket | null = null;
-let onPercentage: ((pct: string) => void) | null = null;
-let onComplete: (() => void) | null = null;
-let onFailed: ((msg: string) => void) | null = null;
+type DownloadHandlers = {
+  onProgress: (pct: string) => void;
+  onComplete: () => void;
+  onFailed: (msg: string) => void;
+};
 
-export function getSocket(): Socket {
-  if (!socket) {
-    socket = io(BACKEND_URL, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 2000,
-      reconnectionAttempts: Infinity,
-    });
+type RuntimeResponse = {
+  success?: boolean;
+  error?: string;
+  healthy?: boolean;
+  requestId?: string;
+};
 
-    socket.on('connect', () => console.log('[YT2PP] Connected to backend'));
-    socket.on('disconnect', () => console.log('[YT2PP] Disconnected from backend'));
+const downloadHandlers = new Map<string, DownloadHandlers>();
+let runtimeListenerInitialized = false;
 
-    socket.on('percentage', (data: { percentage: string }) => {
-      if (onPercentage) onPercentage(data.percentage.trim());
-    });
+function ensureRuntimeListener() {
+  if (runtimeListenerInitialized) return;
 
-    socket.on('download-complete', () => {
-      if (onComplete) onComplete();
-    });
+  chrome.runtime.onMessage.addListener((message) => {
+    const requestId = typeof message?.requestId === 'string' ? message.requestId : '';
+    if (!requestId) return;
 
-    socket.on('download-failed', (data: { message: string }) => {
-      if (onFailed) onFailed(data.message);
-    });
-  }
-  return socket;
+    const handlers = downloadHandlers.get(requestId);
+    if (!handlers) return;
+
+    if (message.type === 'DOWNLOAD_PROGRESS') {
+      handlers.onProgress(String(message.percentage ?? '0%').trim());
+      return;
+    }
+
+    if (message.type === 'DOWNLOAD_COMPLETE') {
+      downloadHandlers.delete(requestId);
+      handlers.onComplete();
+      return;
+    }
+
+    if (message.type === 'DOWNLOAD_FAILED') {
+      downloadHandlers.delete(requestId);
+      handlers.onFailed(String(message.message ?? 'Unknown error'));
+    }
+  });
+
+  runtimeListenerInitialized = true;
 }
 
-export function setProgressCallbacks(
-  percentageCb: (pct: string) => void,
-  completeCb: () => void,
-  failedCb: (msg: string) => void
-) {
-  onPercentage = percentageCb;
-  onComplete = completeCb;
-  onFailed = failedCb;
+function sendRuntimeMessage<T extends RuntimeResponse>(message: object): Promise<T> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response: T | undefined) => {
+      const runtimeError = chrome.runtime.lastError;
+      if (runtimeError) {
+        reject(new Error(runtimeError.message));
+        return;
+      }
+
+      resolve((response ?? {}) as T);
+    });
+  });
 }
 
-export interface DownloadRequest {
-  videoUrl: string;
-  downloadType: 'full' | 'audio' | 'clip';
-  audioOnly?: boolean;
-  downloadMP3?: boolean;
-  clipIn?: number;
-  clipOut?: number;
-  currentTime?: number;
-  downloadPath?: string;
-  secondsBefore?: number;
-  secondsAfter?: number;
-  videoOnly?: boolean;
-  resolution?: string;
+export function createRequestId(): string {
+  return crypto.randomUUID();
+}
+
+export function registerDownloadHandlers(requestId: string, handlers: DownloadHandlers) {
+  ensureRuntimeListener();
+  downloadHandlers.set(requestId, handlers);
+}
+
+export function unregisterDownloadHandlers(requestId: string) {
+  downloadHandlers.delete(requestId);
+}
+
+export function unsubscribeFromDownload(requestId: string) {
+  unregisterDownloadHandlers(requestId);
+  void sendRuntimeMessage({ type: 'STOP_TRACKING_DOWNLOAD', requestId }).catch(() => {});
 }
 
 export async function sendDownloadRequest(req: DownloadRequest): Promise<boolean> {
   try {
-    const payload = {
-      ...req,
-      downloadMP3: req.audioOnly ?? req.downloadMP3 ?? false,
-    };
-
-    const response = await fetch(`${BACKEND_URL}/handle-video-url`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    const response = await sendRuntimeMessage<RuntimeResponse>({
+      type: 'START_DOWNLOAD',
+      request: req,
     });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({ error: 'Unknown error' }));
-      console.error('[YT2PP] Request failed:', data.error);
+
+    if (!response.success) {
+      console.error('[YT2PP] Request failed:', response.error ?? 'Unknown error');
       return false;
     }
+
     return true;
-  } catch (err) {
-    console.error('[YT2PP] Network error:', err);
+  } catch (error) {
+    console.error('[YT2PP] Network error:', error);
     return false;
   }
 }
 
 export async function checkServerHealth(): Promise<boolean> {
   try {
-    const res = await fetch(BACKEND_URL, { method: 'GET', signal: AbortSignal.timeout(3000) });
-    return res.ok;
+    const response = await sendRuntimeMessage<RuntimeResponse>({ type: 'CHECK_BACKEND_HEALTH' });
+    return Boolean(response.healthy);
   } catch {
     return false;
   }

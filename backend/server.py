@@ -1,7 +1,9 @@
 import os
 import sys
 import logging
+import re
 import threading
+from uuid import uuid4
 
 from settings import APP_VERSION, LOG_FILE, load_settings, normalize_settings, save_settings
 
@@ -16,16 +18,33 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 import pygame.mixer
-from flask_cors import CORS
 from flask import Flask, request, jsonify
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, join_room, leave_room
 
 from downloader import set_socketio, download_video, download_audio, download_clip
 from premiere import is_premiere_running, import_video_to_premiere, get_default_download_path
 
 app = Flask(__name__)
-CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+TRUSTED_EXTENSION_ORIGIN = 'chrome-extension://noloogahcbofnjjkpbeandcgoldejcic'
+TRUSTED_ORIGIN_PATTERNS = (
+    re.compile(rf'^{re.escape(TRUSTED_EXTENSION_ORIGIN)}$'),
+)
+
+
+def is_allowed_origin(origin):
+    if not origin:
+        return False
+    normalized_origin = origin.strip()
+    return any(pattern.fullmatch(normalized_origin) for pattern in TRUSTED_ORIGIN_PATTERNS)
+
+
+socketio = SocketIO(
+    app,
+    cors_allowed_origins=is_allowed_origin,
+    cors_credentials=False,
+    async_mode='threading',
+)
 
 # Wire socketio into downloader module
 set_socketio(socketio)
@@ -34,12 +53,34 @@ set_socketio(socketio)
 @app.after_request
 def add_security_headers(response):
     origin = request.headers.get('Origin')
-    if origin:
+    if origin and is_allowed_origin(origin):
         response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Vary'] = 'Origin'
     response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Allow-Headers'] = (
+        request.headers.get('Access-Control-Request-Headers') or 'Content-Type'
+    )
+    response.headers['Access-Control-Max-Age'] = '600'
     return response
+
+
+@app.before_request
+def validate_request_origin():
+    origin = request.headers.get('Origin')
+    if request.method == 'OPTIONS':
+        if origin and not is_allowed_origin(origin):
+            logger.warning('Blocked preflight request from origin %s to %s', origin, request.path)
+            return jsonify(error='Origin not allowed'), 403
+        return '', 204
+
+    if request.method == 'POST' and not origin:
+        logger.warning('Blocked state-changing request without origin to %s', request.path)
+        return jsonify(error='Origin required'), 403
+
+    if origin and not is_allowed_origin(origin):
+        logger.warning('Blocked request from origin %s to %s', origin, request.path)
+        return jsonify(error='Origin not allowed'), 403
+    return None
 
 
 @app.errorhandler(404)
@@ -82,6 +123,7 @@ def handle_video_url():
 
     video_url = data.get('videoUrl')
     download_type = data.get('downloadType')
+    request_id = str(data.get('requestId') or uuid4())
 
     if not video_url:
         return jsonify(error="No video URL"), 400
@@ -102,9 +144,19 @@ def handle_video_url():
         file_path = None
         try:
             if download_type == 'full':
-                file_path = download_video(video_url, resolution, download_path, download_mp3, video_only)
+                if download_mp3:
+                    file_path = download_audio(video_url, download_path, request_id=request_id)
+                else:
+                    file_path = download_video(
+                        video_url,
+                        resolution,
+                        download_path,
+                        download_mp3,
+                        video_only,
+                        request_id=request_id,
+                    )
             elif download_type == 'audio':
-                file_path = download_audio(video_url, download_path)
+                file_path = download_audio(video_url, download_path, request_id=request_id)
             elif download_type == 'clip':
                 clip_start = data.get('clipIn')
                 clip_end = data.get('clipOut')
@@ -117,22 +169,60 @@ def handle_video_url():
                     seconds_after = int(settings['secondsAfter'])
                     clip_start = max(0, current_time - seconds_before)
                     clip_end = current_time + seconds_after
-                file_path = download_clip(video_url, resolution, download_path, clip_start, clip_end, download_mp3, video_only)
+                file_path = download_clip(
+                    video_url,
+                    resolution,
+                    download_path,
+                    clip_start,
+                    clip_end,
+                    download_mp3,
+                    video_only,
+                    request_id=request_id,
+                )
 
             if not file_path:
                 raise RuntimeError('Download completed but no output file was produced')
 
             import_video_to_premiere(file_path)
             play_notification_sound()
-            socketio.emit('download-complete', {'path': file_path})
+            socketio.emit('download-complete', {'requestId': request_id, 'path': file_path}, to=request_id)
         except Exception as e:
             logger.error(f"Processing error: {e}", exc_info=True)
-            socketio.emit('download-failed', {'message': str(e)})
+            socketio.emit('download-failed', {'requestId': request_id, 'message': str(e)}, to=request_id)
 
     thread = threading.Thread(target=process, daemon=True)
     thread.start()
 
-    return jsonify(success=True), 200
+    return jsonify(success=True, requestId=request_id), 200
+
+
+@socketio.on('connect')
+def handle_socket_connect(auth):
+    origin = request.headers.get('Origin')
+    if not origin or not is_allowed_origin(origin):
+        logger.warning('Rejected socket connection from origin %s', origin or '<missing>')
+        return False
+    return True
+
+
+@socketio.on('subscribe-download')
+def handle_subscribe_download(data):
+    request_id = str((data or {}).get('requestId') or '').strip()
+    if not request_id:
+        return {'success': False, 'message': 'Missing requestId'}
+    join_room(request_id)
+    logger.info('Socket %s subscribed to download %s', request.sid, request_id)
+    return {'success': True}
+
+
+@socketio.on('unsubscribe-download')
+def handle_unsubscribe_download(data):
+    request_id = str((data or {}).get('requestId') or '').strip()
+    if not request_id:
+        return {'success': False, 'message': 'Missing requestId'}
+    leave_room(request_id)
+    logger.info('Socket %s unsubscribed from download %s', request.sid, request_id)
+    return {'success': True}
 
 
 def play_notification_sound(volume=0.4):

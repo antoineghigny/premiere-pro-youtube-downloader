@@ -1,5 +1,10 @@
 import { getVideoUrl } from '../utils/pageUtils';
-import { sendDownloadRequest } from '../api/serverApi';
+import {
+  createRequestId,
+  registerDownloadHandlers,
+  sendDownloadRequest,
+  unsubscribeFromDownload,
+} from '../api/serverApi';
 import { formatDuration } from '../utils/timeUtils';
 
 type ButtonState = 'disabled' | 'ready' | 'loading' | 'progress' | 'complete' | 'error';
@@ -15,6 +20,7 @@ export class ClipButton {
   private isActive = false;
   private onComplete: () => void;
   private progress = 0;
+  private activeRequestId: string | null = null;
 
   constructor(onComplete: () => void) {
     this.onComplete = onComplete;
@@ -83,18 +89,37 @@ export class ClipButton {
     this.progress = 4;
     this.render();
 
-    chrome.storage.sync.get({ videoOnly: false, resolution: '1080', downloadPath: '' }, async (items) => {
+    chrome.storage.sync.get({ audioOnly: false, downloadMP3: false, videoOnly: false, resolution: '1080', downloadPath: '' }, async (items) => {
+      const requestId = createRequestId();
+      const audioOnly = Boolean(items.audioOnly ?? items.downloadMP3);
+      const videoOnly = Boolean(items.videoOnly) && !audioOnly;
+
+      this.activeRequestId = requestId;
+      registerDownloadHandlers(requestId, {
+        onProgress: (pct) => this.setProgress(pct),
+        onComplete: () => this.setComplete(),
+        onFailed: (msg) => {
+          console.error('[YT2PP] Clip download failed:', msg);
+          this.setError();
+        },
+      });
+
       const ok = await sendDownloadRequest({
+        requestId,
         videoUrl: url,
         downloadType: 'clip',
-        audioOnly: false,
+        audioOnly,
         clipIn: Math.min(this.inTime!, this.outTime!),
         clipOut: Math.max(this.inTime!, this.outTime!),
-        videoOnly: items.videoOnly as boolean,
+        videoOnly,
         resolution: items.resolution as string,
         downloadPath: items.downloadPath as string,
       });
       if (!ok) {
+        unsubscribeFromDownload(requestId);
+        if (this.activeRequestId === requestId) {
+          this.activeRequestId = null;
+        }
         this.setError();
       }
     });
@@ -112,6 +137,9 @@ export class ClipButton {
 
   setComplete() {
     if (!this.isActive) return;
+    if (this.activeRequestId) {
+      this.activeRequestId = null;
+    }
     this.state = 'complete';
     this.progress = 100;
     this.render();
@@ -131,6 +159,9 @@ export class ClipButton {
 
   setError() {
     if (!this.isActive) return;
+    if (this.activeRequestId) {
+      this.activeRequestId = null;
+    }
     this.state = 'error';
     this.isActive = false;
     this.progress = Math.max(this.progress, 18);
@@ -139,5 +170,15 @@ export class ClipButton {
       this.progress = 0;
       this.updateMarkers(this.inTime, this.outTime);
     }, 3000);
+  }
+
+  dispose() {
+    if (this.activeRequestId) {
+      unsubscribeFromDownload(this.activeRequestId);
+      this.activeRequestId = null;
+    }
+    this.isActive = false;
+    this.progress = 0;
+    this.updateMarkers(this.inTime, this.outTime);
   }
 }

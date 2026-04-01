@@ -95,11 +95,22 @@ def generate_new_filename(base_path, original_name, extension, suffix=""):
     return new_name
 
 
-def _cleanup_failed_output(output_path):
-    """Best-effort cleanup for partial yt-dlp/ffmpeg artifacts."""
+def _list_related_outputs(output_path):
     root, _ = os.path.splitext(output_path)
-    candidates = {output_path, f"{output_path}.part"}
-    candidates.update(glob.glob(f"{root}.*"))
+    pattern = f"{glob.escape(root)}.*"
+    return {
+        candidate
+        for candidate in glob.glob(pattern)
+        if os.path.isfile(candidate)
+    }
+
+
+def _cleanup_failed_output(output_path, existing_candidates=None):
+    """Best-effort cleanup for new partial yt-dlp/ffmpeg artifacts."""
+    candidates = _list_related_outputs(output_path)
+    if existing_candidates is not None:
+        candidates = {candidate for candidate in candidates if candidate not in existing_candidates}
+    candidates.add(f"{output_path}.part")
 
     for candidate in candidates:
         if not os.path.isfile(candidate):
@@ -110,18 +121,21 @@ def _cleanup_failed_output(output_path):
             logger.warning(f"Could not remove partial artifact: {candidate}")
 
 
-def _resolve_output_path(expected_path):
+def _resolve_output_path(expected_path, existing_candidates=None):
     """Return the final output path even if yt-dlp changed the extension."""
     if os.path.isfile(expected_path):
         return expected_path
 
-    root, _ = os.path.splitext(expected_path)
-    candidates = sorted(
+    candidates = {
         candidate
-        for candidate in glob.glob(f"{root}.*")
-        if os.path.isfile(candidate) and not candidate.endswith('.part')
-    )
-    return candidates[0] if candidates else None
+        for candidate in _list_related_outputs(expected_path)
+        if not candidate.endswith('.part')
+    }
+    if existing_candidates is not None:
+        candidates = {candidate for candidate in candidates if candidate not in existing_candidates}
+    if not candidates:
+        return None
+    return max(candidates, key=os.path.getmtime)
 
 
 def _run_yt_dlp_cli(cli_args):
@@ -134,7 +148,13 @@ def _run_yt_dlp_cli(cli_args):
         return code if isinstance(code, int) else 1
 
 
-def _make_progress_hook(phase_count, video_weight=0.85):
+def _emit_progress(request_id, pct_display):
+    if not socketio or not request_id:
+        return
+    socketio.emit('download-progress', {'requestId': request_id, 'percentage': pct_display}, to=request_id)
+
+
+def _make_progress_hook(request_id, phase_count, video_weight=0.85):
     """Return a progress_hook closure that maps multi-phase downloads to a
     single 0-100% range.
 
@@ -155,7 +175,7 @@ def _make_progress_hook(phase_count, video_weight=0.85):
     }
 
     def hook(d):
-        if not socketio:
+        if not socketio or not request_id:
             return
 
         filename = d.get('filename', '')
@@ -204,7 +224,7 @@ def _make_progress_hook(phase_count, video_weight=0.85):
 
             pct_display = f"{mapped_pct:.1f}%"
             logger.info(f'Progress: {pct_display} (phase {phase + 1}/{phase_count})')
-            socketio.emit('percentage', {'percentage': pct_display})
+            _emit_progress(request_id, pct_display)
 
         elif d['status'] == 'finished':
             # When aria2c is used, we may only get 'finished' events.
@@ -216,7 +236,7 @@ def _make_progress_hook(phase_count, video_weight=0.85):
             else:
                 pct_display = "100.0%"
             logger.info(f'Phase {phase + 1}/{phase_count} finished → {pct_display}')
-            socketio.emit('percentage', {'percentage': pct_display})
+            _emit_progress(request_id, pct_display)
 
     return hook
 
@@ -248,7 +268,7 @@ def _get_base_ydl_opts(hook=None):
     return opts
 
 
-def download_video(video_url, resolution, download_path, download_mp3=False, video_only=False):
+def download_video(video_url, resolution, download_path, download_mp3=False, video_only=False, request_id=None):
     logger.info(f"Starting download: {video_url} (video_only={video_only})")
     download_path = os.path.abspath(download_path)
     info_opts = {'quiet': True}
@@ -260,7 +280,7 @@ def download_video(video_url, resolution, download_path, download_mp3=False, vid
 
     if download_mp3:
         fmt = 'bestaudio[ext=m4a]/best'
-        hook = _make_progress_hook(phase_count=1)
+        hook = _make_progress_hook(request_id, phase_count=1)
     elif video_only:
         # Strictly best video only, no audio merge (+)
         fmt = (
@@ -269,7 +289,7 @@ def download_video(video_url, resolution, download_path, download_mp3=False, vid
             f'/bestvideo[height<={resolution}]'
             f'/bestvideo'
         )
-        hook = _make_progress_hook(phase_count=1)
+        hook = _make_progress_hook(request_id, phase_count=1)
     else:
         fmt = (
             f'bestvideo[ext=mp4][vcodec^=avc1][height<={resolution}]+bestaudio[ext=m4a]'
@@ -278,24 +298,30 @@ def download_video(video_url, resolution, download_path, download_mp3=False, vid
             f'/best[ext=mp4]'
             f'/best'
         )
-        hook = _make_progress_hook(phase_count=2)
+        hook = _make_progress_hook(request_id, phase_count=2)
     filename = generate_new_filename(download_path, title, ext)
     output_path = os.path.abspath(os.path.join(download_path, filename))
+    existing_outputs = _list_related_outputs(output_path)
     ydl_opts = _get_base_ydl_opts(hook=hook)
     ydl_opts['outtmpl'] = output_path
     ydl_opts['format'] = fmt
     if not download_mp3 and not video_only:
         ydl_opts['merge_output_format'] = 'mp4'
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        result = ydl.download([video_url])
-        final_path = _resolve_output_path(output_path)
-        if result == 0 and final_path:
-            logger.info(f"Downloaded: {final_path}")
-            return final_path
+    try:
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.download([video_url])
+    except Exception:
+        _cleanup_failed_output(output_path, existing_outputs)
+        raise
+    final_path = _resolve_output_path(output_path, existing_outputs)
+    if result == 0 and final_path:
+        logger.info(f"Downloaded: {final_path}")
+        return final_path
+    _cleanup_failed_output(output_path, existing_outputs)
     raise RuntimeError(f"Video download failed (exit code {result}, expected output: {output_path})")
 
 
-def download_audio(video_url, download_path):
+def download_audio(video_url, download_path, request_id=None):
     logger.info(f"Starting audio download: {video_url}")
     download_path = os.path.abspath(download_path)
     info_opts = {'quiet': True}
@@ -306,14 +332,20 @@ def download_audio(video_url, download_path):
     m4a_filename = generate_new_filename(download_path, title, 'm4a')
     m4a_path = os.path.abspath(os.path.join(download_path, m4a_filename))
     # Audio is single-stream → 1 phase
-    hook = _make_progress_hook(phase_count=1)
+    existing_audio_outputs = _list_related_outputs(m4a_path)
+    hook = _make_progress_hook(request_id, phase_count=1)
     ydl_opts = _get_base_ydl_opts(hook=hook)
     ydl_opts['outtmpl'] = m4a_path
     ydl_opts['format'] = 'bestaudio[ext=m4a]/best'
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        result = ydl.download([video_url])
-    source_audio_path = _resolve_output_path(m4a_path)
+    try:
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.download([video_url])
+    except Exception:
+        _cleanup_failed_output(m4a_path, existing_audio_outputs)
+        raise
+    source_audio_path = _resolve_output_path(m4a_path, existing_audio_outputs)
     if result != 0 or not source_audio_path:
+        _cleanup_failed_output(m4a_path, existing_audio_outputs)
         raise RuntimeError(f"Audio download failed (exit code {result}, expected output: {m4a_path})")
     wav_filename = generate_new_filename(download_path, title, 'wav')
     wav_path = os.path.abspath(os.path.join(download_path, wav_filename))
@@ -331,7 +363,7 @@ def download_audio(video_url, download_path):
         raise RuntimeError(f'FFmpeg not found for audio conversion: {e}') from e
 
 
-def download_clip(video_url, resolution, download_path, clip_start, clip_end, download_mp3=False, video_only=False):
+def download_clip(video_url, resolution, download_path, clip_start, clip_end, download_mp3=False, video_only=False, request_id=None):
     logger.info(f"Starting clip download: {video_url} [{clip_start}-{clip_end}] (video_only={video_only})")
     download_path = os.path.abspath(download_path)
     info_opts = {'quiet': True}
@@ -345,14 +377,20 @@ def download_clip(video_url, resolution, download_path, clip_start, clip_end, do
         clip_duration = clip_end - clip_start
         m4a_filename = generate_new_filename(download_path, title, 'm4a', clip_suffix)
         m4a_path = os.path.abspath(os.path.join(download_path, m4a_filename))
-        hook = _make_progress_hook(phase_count=1)
+        existing_audio_outputs = _list_related_outputs(m4a_path)
+        hook = _make_progress_hook(request_id, phase_count=1)
         ydl_opts = _get_base_ydl_opts(hook=hook)
         ydl_opts['outtmpl'] = m4a_path
         ydl_opts['format'] = 'bestaudio[ext=m4a]/best'
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            result = ydl.download([video_url])
-        source_audio_path = _resolve_output_path(m4a_path)
+        try:
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                result = ydl.download([video_url])
+        except Exception:
+            _cleanup_failed_output(m4a_path, existing_audio_outputs)
+            raise
+        source_audio_path = _resolve_output_path(m4a_path, existing_audio_outputs)
         if result != 0 or not source_audio_path:
+            _cleanup_failed_output(m4a_path, existing_audio_outputs)
             raise RuntimeError(f"Audio clip download failed (exit code {result}, expected output: {m4a_path})")
         wav_filename = generate_new_filename(download_path, title, 'wav', clip_suffix)
         wav_path = os.path.abspath(os.path.join(download_path, wav_filename))
@@ -372,6 +410,7 @@ def download_clip(video_url, resolution, download_path, clip_start, clip_end, do
     else:
         video_filename = generate_new_filename(download_path, title, 'mp4', clip_suffix)
         video_path = os.path.abspath(os.path.join(download_path, video_filename))
+        existing_video_outputs = _list_related_outputs(video_path)
 
         if video_only:
             # Strictly best video only, no audio merge (+)
@@ -395,7 +434,7 @@ def download_clip(video_url, resolution, download_path, clip_start, clip_end, do
         # Use yt-dlp Python API with download_ranges for proper progress support
         try:
             from yt_dlp.utils import download_range_func
-            hook = _make_progress_hook(phase_count=phase_count)
+            hook = _make_progress_hook(request_id, phase_count=phase_count)
             ydl_opts = _get_base_ydl_opts(hook=hook)
             ydl_opts.pop('external_downloader', None)
             ydl_opts.pop('external_downloader_args', None)
@@ -409,14 +448,14 @@ def download_clip(video_url, resolution, download_path, clip_start, clip_end, do
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 result = ydl.download([video_url])
 
-            final_path = _resolve_output_path(video_path)
+            final_path = _resolve_output_path(video_path, existing_video_outputs)
             if result == 0 and final_path:
                 logger.info(f"Clip downloaded (Python API): {final_path}")
                 return final_path
             raise RuntimeError(f"Clip download failed (exit code {result}, expected output: {video_path})")
         except Exception as e:
             logger.warning(f"Python API clip download failed ({e}), falling back to subprocess")
-            _cleanup_failed_output(video_path)
+            _cleanup_failed_output(video_path, existing_video_outputs)
 
         # Fallback: use yt-dlp's CLI entrypoint from the bundled Python module.
         clip_start_str = time.strftime('%H:%M:%S', time.gmtime(clip_start))
@@ -435,13 +474,13 @@ def download_clip(video_url, resolution, download_path, clip_start, clip_end, do
             exit_code = _run_yt_dlp_cli(cli_args)
         except Exception as e:
             logger.error(f"yt-dlp clip fallback error: {e}", exc_info=True)
-            _cleanup_failed_output(video_path)
+            _cleanup_failed_output(video_path, existing_video_outputs)
             return None
 
-        final_path = _resolve_output_path(video_path)
+        final_path = _resolve_output_path(video_path, existing_video_outputs)
         if exit_code == 0 and final_path:
             logger.info(f"Clip downloaded (CLI fallback): {final_path}")
             return final_path
         logger.error(f"yt-dlp clip fallback failed with exit code {exit_code} (expected output: {video_path})")
-        _cleanup_failed_output(video_path)
+        _cleanup_failed_output(video_path, existing_video_outputs)
         return None

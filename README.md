@@ -8,40 +8,34 @@ It is made of three parts:
 - a local Python backend running on `127.0.0.1:3001`
 - a CEP panel for Premiere Pro
 
-## Goals
-
-- no hardcoded user paths
-- clean GitHub repository without local artifacts
-- simple local setup
-- release build that auto-detects local tools when possible
-
 ## Runtime behavior
 
 - settings are stored in the user config directory:
-  - Windows: `%APPDATA%\\YT2Premiere`
+  - Windows: `%APPDATA%\YT2Premiere`
   - macOS: `~/Library/Application Support/YT2Premiere`
   - Linux: `${XDG_CONFIG_HOME:-~/.config}/YT2Premiere`
 - downloads default to the current Premiere project folder when Premiere is available
 - otherwise downloads fall back to `~/Downloads/YT2Premiere/YYYY-MM-DD`
+- the extension now routes backend traffic through its service worker, and its manifest key pins a stable extension ID so the local API only accepts this extension origin
 
 ## Repository layout
 
-- `backend/`: local API server and download/import logic
-- `extension/`: Chrome extension source
+- `backend/`: local API server, download pipeline, PyInstaller spec
+- `extension/`: Chrome extension source and webpack build
 - `cep-extension/`: Premiere CEP panel
-- `installer/`: NSIS installer
-- `tools/`: optional local binaries for packaging only, not committed
+- `installer/`: NSIS installer definition
+- `.github/workflows/`: CI and release automation
+- `tools/`: optional local binaries for maintainer builds only, not committed
 
 ## Development setup
 
 Requirements:
 
-- Windows is the main supported release target
-- Node.js 20+
-- Python 3.11+ with `pip`
+- Windows is the supported release target
+- Node.js 20
+- Python 3.12
 - Google Chrome
 - Adobe Premiere Pro
-- FFmpeg available either on `PATH` or in `tools/ffmpeg_win/`
 
 Install dependencies:
 
@@ -52,14 +46,14 @@ cd ..
 python -m pip install -r backend/requirements.txt
 ```
 
-Run the backend:
+Run the backend locally:
 
 ```bash
 cd backend
 python server.py
 ```
 
-Build the Chrome extension:
+Build the unpacked extension:
 
 ```bash
 cd extension
@@ -68,28 +62,23 @@ npm run build
 
 Then load `extension/dist/` as an unpacked extension in `chrome://extensions`.
 
-## Release build
+## CI and releases
 
-Use:
+The canonical build path is GitHub Actions:
 
-```bat
-build.bat
-```
+- `.github/workflows/ci.yml` validates the extension build and the versioned PyInstaller spec on every push and pull request.
+- `.github/workflows/release.yml` builds Windows release assets on tags matching `v*` or on manual dispatch.
 
-What the script does:
+Tagged releases publish:
 
-- installs build dependencies for the backend
-- builds the Chrome extension
-- builds the Python executable with PyInstaller
-- stages release files in `dist/staging/`
-- bundles FFmpeg from `tools/ffmpeg_win/` or from `PATH`
-- bundles `aria2c` if available, but it is optional
-- builds the NSIS installer if `makensis` is installed
+- `YT2PremiereInstaller.exe`
+- `YT2Premiere-backend-win64.zip`
+- `YT2Premiere-chrome-extension.zip`
+- `YT2Premiere-cep-extension.zip`
+- `SHA256SUMS.txt`
 
-The script does not require any personal directory path.
+The release workflow installs `ffmpeg`, `aria2`, and `NSIS` explicitly, so artifacts are reproducible and do not depend on maintainer machines.
 
-## Notes
+## Maintainer build
 
-- `tools/` is intentionally ignored by git
-- generated media files, logs, and build outputs are ignored by git
-- audio-only exports are saved as WAV because that format is safer for Premiere workflows
+`build.bat` mirrors the release workflow for local maintainer builds. It uses `npm ci --no-audit --no-fund`, the versioned `backend/YT2Premiere.spec`, and auto-detects local FFmpeg and optional `aria2c` when packaging outside CI.

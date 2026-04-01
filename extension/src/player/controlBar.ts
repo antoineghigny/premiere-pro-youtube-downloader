@@ -4,7 +4,6 @@ import { AudioButton } from './audioBtn';
 import { ClipMarkers } from './clipMarkers';
 import { ClipButton } from './clipBtn';
 import { ClipOverlay } from './clipOverlay';
-import { getSocket, setProgressCallbacks } from '../api/serverApi';
 
 export class ControlBar {
   private container: HTMLDivElement;
@@ -41,29 +40,6 @@ export class ControlBar {
     this.container.appendChild(this.clipMarkers.getInElement());
     this.container.appendChild(this.clipMarkers.getOutElement());
     this.container.appendChild(this.clipBtn.getElement());
-
-    // Initialize socket connection
-    getSocket();
-
-    // Set up progress callbacks
-    setProgressCallbacks(
-      (pct) => {
-        this.downloadBtn.setProgress(pct);
-        this.audioBtn.setProgress(pct);
-        this.clipBtn.setProgress(pct);
-      },
-      () => {
-        this.downloadBtn.setComplete();
-        this.audioBtn.setComplete();
-        this.clipBtn.setComplete();
-      },
-      (msg) => {
-        console.error('[YT2PP] Download failed:', msg);
-        this.downloadBtn.setError();
-        this.audioBtn.setError();
-        this.clipBtn.setError();
-      }
-    );
   }
 
   private getVideoDuration(): number {
@@ -99,6 +75,13 @@ export class ControlBar {
     this.clipOverlay.detach();
     this.clipMarkers.reset();
     this.attached = false;
+  }
+
+  dispose() {
+    this.downloadBtn.dispose();
+    this.audioBtn.dispose();
+    this.clipBtn.dispose();
+    this.detach();
   }
 
   ensureAttached() {

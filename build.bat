@@ -13,7 +13,7 @@ call :require_command python "Python is required."
 
 echo === [1/4] Building Chrome Extension ===
 pushd "%ROOT%extension" || exit /b 1
-call npm ci
+call npm ci --no-audit --no-fund
 if errorlevel 1 (
     echo ERROR: npm ci failed.
     exit /b 1
@@ -27,15 +27,12 @@ popd
 
 echo === [2/4] Building Python Backend (.exe) ===
 pushd "%ROOT%backend" || exit /b 1
-python -m pip install -r requirements-build.txt --quiet
+python -m pip install --disable-pip-version-check -r requirements-build.txt --quiet
 if errorlevel 1 (
     echo ERROR: Python dependency installation failed.
     exit /b 1
 )
-python -m PyInstaller --noconfirm --clean --onefile --name YT2Premiere ^
-    --add-data "notification_sound.mp3;." ^
-    --hidden-import=engineio.async_drivers.threading ^
-    server.py
+python -m PyInstaller YT2Premiere.spec --noconfirm --clean --distpath dist --workpath build
 if errorlevel 1 (
     echo ERROR: PyInstaller build failed.
     exit /b 1

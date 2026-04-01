@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements-build.txt
+
+      - name: Install Windows packaging dependencies
+        shell: pwsh
+        run: choco install ffmpeg aria2 nsis -y --no-progress
+
+      - name: Install extension dependencies
+        working-directory: extension
+        run: npm ci --no-audit --no-fund
+
+      - name: Build extension
+        working-directory: extension
+        run: npm run build
+
+      - name: Install backend build dependencies
+        run: python -m pip install --disable-pip-version-check -r backend/requirements-build.txt
+
+      - name: Build backend executable
+        working-directory: backend
+        run: python -m PyInstaller YT2Premiere.spec --noconfirm --clean --distpath dist --workpath build
+
+      - name: Stage portable assets
+        shell: pwsh
+        run: |
+          $stageDir = Join-Path $PWD 'dist\staging'
+          $execDir = Join-Path $stageDir 'exec'
+          $chromeExtensionDir = Join-Path $stageDir 'chrome-extension'
+          $cepExtensionDir = Join-Path $stageDir 'cep-extension'
+          $releaseDir = Join-Path $PWD 'dist\release'
+
+          Remove-Item -Recurse -Force $stageDir, $releaseDir -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $execDir, $chromeExtensionDir, $cepExtensionDir, $releaseDir | Out-Null
+
+          Copy-Item 'backend/dist/YT2Premiere.exe' (Join-Path $execDir 'YT2Premiere.exe')
+
+          $ffmpegExe = (Get-Command ffmpeg -ErrorAction Stop).Source
+          $ffmpegBinDir = Join-Path $execDir 'ffmpeg_win\bin'
+          New-Item -ItemType Directory -Force -Path $ffmpegBinDir | Out-Null
+          Copy-Item $ffmpegExe (Join-Path $ffmpegBinDir 'ffmpeg.exe')
+
+          $ffprobeExe = Join-Path (Split-Path $ffmpegExe) 'ffprobe.exe'
+          if (Test-Path $ffprobeExe) {
+            Copy-Item $ffprobeExe (Join-Path $ffmpegBinDir 'ffprobe.exe')
+          }
+
+          $aria2Exe = (Get-Command aria2c -ErrorAction Stop).Source
+          $aria2Dir = Join-Path $execDir 'aria2c'
+          New-Item -ItemType Directory -Force -Path $aria2Dir | Out-Null
+          Copy-Item $aria2Exe (Join-Path $aria2Dir 'aria2c.exe')
+
+          Copy-Item 'extension/dist/*' $chromeExtensionDir -Recurse
+          Copy-Item 'cep-extension/*' $cepExtensionDir -Recurse
+
+          Compress-Archive -Path (Join-Path $execDir '*') -DestinationPath (Join-Path $releaseDir 'YT2Premiere-backend-win64.zip') -Force
+          Compress-Archive -Path (Join-Path $chromeExtensionDir '*') -DestinationPath (Join-Path $releaseDir 'YT2Premiere-chrome-extension.zip') -Force
+          Compress-Archive -Path (Join-Path $cepExtensionDir '*') -DestinationPath (Join-Path $releaseDir 'YT2Premiere-cep-extension.zip') -Force
+
+      - name: Build NSIS installer
+        run: makensis installer/installer.nsi
+
+      - name: Finalize release assets
+        shell: pwsh
+        run: |
+          $releaseDir = Join-Path $PWD 'dist\release'
+          Move-Item 'dist/YT2PremiereInstaller.exe' (Join-Path $releaseDir 'YT2PremiereInstaller.exe') -Force
+
+          $hashLines = Get-ChildItem $releaseDir -File |
+            Sort-Object Name |
+            ForEach-Object {
+              '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+            }
+
+          Set-Content (Join-Path $releaseDir 'SHA256SUMS.txt') $hashLines
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: dist/release/*
+          compression-level: 0
+
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build-windows
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: release-assets
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" release-assets/* --clobber
+          else
+            gh release create "$tag" release-assets/* --generate-notes --title "$tag"
+          fi

@@ -24,19 +24,35 @@
   color: #fff;
   cursor: pointer;
   position: relative;
-  overflow: hidden;
-  border-radius: 10px;
+  overflow: visible;
   outline: none;
-  transition: opacity 0.12s ease, background-color 0.18s ease;
+  transition: opacity 0.12s ease;
 }
 
 .ytp-big-mode .yt2pp-btn {
   width: 54px;
 }
 
+.yt2pp-btn::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 4px;
+  right: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
 .yt2pp-btn:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.08);
+}
+
+.yt2pp-btn:hover::before {
+  opacity: 1;
 }
 
 .yt2pp-btn svg {
@@ -51,10 +67,10 @@
 
 .yt2pp-btn-progress-fill {
   position: absolute;
-  top: 5px;
-  bottom: 5px;
-  left: 3px;
-  right: 3px;
+  top: 7px;
+  bottom: 7px;
+  left: 4px;
+  right: 4px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(97, 22, 255, 0.92) 0%, rgba(128, 72, 255, 0.92) 100%);
   transform: scaleX(0);
@@ -68,13 +84,16 @@
 
 .yt2pp-btn-progress-label {
   position: absolute;
-  inset: 0;
+  top: 7px;
+  bottom: 7px;
+  left: 4px;
+  right: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
   opacity: 0;
@@ -91,8 +110,8 @@
 }
 
 .yt2pp-btn.yt2pp-show-progress svg {
-  opacity: 0;
-  transform: scale(0.8);
+  opacity: 0.14;
+  transform: scale(0.92);
 }
 
 .yt2pp-btn.yt2pp-show-progress .yt2pp-btn-progress-label {
@@ -142,14 +161,22 @@
 
 .yt2pp-btn.yt2pp-ready {
   color: #fff !important;
+}
+
+.yt2pp-btn.yt2pp-ready::before {
   background: rgba(97, 22, 255, 0.18);
   box-shadow: inset 0 0 0 1px rgba(97, 22, 255, 0.4);
+  opacity: 1;
 }
 
 .yt2pp-btn.yt2pp-disabled { opacity: 0.3; cursor: default; }
 .yt2pp-btn.yt2pp-marker-set {
+}
+
+.yt2pp-btn.yt2pp-marker-set::before {
   background: rgba(97, 22, 255, 0.18);
   box-shadow: inset 0 0 0 1px rgba(97, 22, 255, 0.45);
+  opacity: 1;
 }
 
 /* Clip Overlays */

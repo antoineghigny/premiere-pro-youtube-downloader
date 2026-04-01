@@ -1,29 +1,28 @@
 import './styles/content.css';
 import { ControlBar } from './player/controlBar';
+import { getVideoId, isVideoPage } from './utils/pageUtils';
 
 let controlBar: ControlBar | null = null;
 let lastUrl = '';
+let lastVideoId: string | null = null;
 let checkInterval: ReturnType<typeof setInterval> | null = null;
 
-function isVideoPage(): boolean {
-  return window.location.pathname === '/watch' && new URLSearchParams(window.location.search).has('v');
-}
-
-function getVideoId(): string | null {
-  return new URLSearchParams(window.location.search).get('v');
-}
-
 function init() {
-  if (isVideoPage()) {
-    if (!controlBar) {
+  const currentVideoId = isVideoPage() ? getVideoId() : null;
+
+  if (currentVideoId) {
+    if (!controlBar || currentVideoId !== lastVideoId) {
+      controlBar?.dispose();
       controlBar = new ControlBar();
+      lastVideoId = currentVideoId;
     }
     controlBar.attach();
   } else {
     if (controlBar) {
-      controlBar.detach();
+      controlBar.dispose();
       controlBar = null;
     }
+    lastVideoId = null;
   }
 }
 
