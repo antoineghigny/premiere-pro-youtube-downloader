@@ -31,7 +31,7 @@
 }
 
 .toggle-option {
-  @apply flex items-center rounded-2xl border border-grey-light/80 bg-white px-4 py-3 cursor-pointer transition-all duration-200;
+  @apply flex items-center justify-between rounded-2xl border border-grey-light/80 bg-white px-4 py-3 cursor-pointer transition-all duration-200;
   box-shadow: 0 10px 24px rgba(42, 44, 64, 0.05);
 }
 
@@ -51,6 +51,12 @@
   @apply flex flex-col gap-0.5;
 }
 
+.toggle-option__indicator {
+  @apply h-5 w-5 rounded-full border border-grey-light shrink-0;
+  box-shadow: inset 0 0 0 3px #fff;
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
 .toggle-option__title {
   @apply text-sm font-bold text-black;
 }
@@ -60,8 +66,8 @@
 }
 
 .toggle-option.is-selected {
-  @apply border-main bg-main/8;
-  box-shadow: inset 0 0 0 1px rgba(97, 22, 255, 0.28), 0 16px 32px rgba(97, 22, 255, 0.12);
+  @apply border-main/50;
+  box-shadow: inset 0 0 0 1px rgba(97, 22, 255, 0.18), 0 16px 32px rgba(97, 22, 255, 0.08);
 }
 
 .toggle-option.is-selected .toggle-option__title {
@@ -70,4 +76,9 @@
 
 .toggle-option.is-selected .toggle-option__meta {
   color: rgba(97, 22, 255, 0.85);
+}
+
+.toggle-option.is-selected .toggle-option__indicator {
+  @apply border-main bg-main;
+  transform: scale(1.04);
 }
