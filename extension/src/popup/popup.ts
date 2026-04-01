@@ -9,6 +9,13 @@ function getVideoOnlyCheckbox() {
   return document.getElementById('videoOnly') as HTMLInputElement;
 }
 
+function syncToggleOptionStyles() {
+  document.querySelectorAll<HTMLElement>('[data-toggle-option]').forEach((option) => {
+    const input = option.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
+    option.classList.toggle('is-selected', Boolean(input?.checked));
+  });
+}
+
 async function checkStatus() {
   const dot = document.getElementById('status-dot')!;
   try {
@@ -38,6 +45,7 @@ function loadSettings() {
       getVideoOnlyCheckbox().checked = Boolean(items.videoOnly) && !audioOnly;
       (document.getElementById('secondsBefore') as HTMLInputElement).value = items.secondsBefore;
       (document.getElementById('secondsAfter') as HTMLInputElement).value = items.secondsAfter;
+      syncToggleOptionStyles();
     }
   );
 }
@@ -73,12 +81,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (getAudioOnlyCheckbox().checked) {
       getVideoOnlyCheckbox().checked = false;
     }
+    syncToggleOptionStyles();
   });
 
   getVideoOnlyCheckbox().addEventListener('change', () => {
     if (getVideoOnlyCheckbox().checked) {
       getAudioOnlyCheckbox().checked = false;
     }
+    syncToggleOptionStyles();
   });
 
   checkStatus();

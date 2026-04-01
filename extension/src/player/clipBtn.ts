@@ -33,13 +33,17 @@ export class ClipButton {
     const progressScale = this.state === 'disabled' || this.state === 'ready'
       ? 0
       : Math.max(0, Math.min(100, this.progress)) / 100;
+    const showProgressLabel = this.state === 'loading' || this.state === 'progress' || this.state === 'complete';
+    const progressLabel = `${Math.max(0, Math.round(this.progress))}%`;
 
     this.element.classList.toggle('yt2pp-busy', this.state === 'loading' || this.state === 'progress');
     this.element.classList.toggle('yt2pp-complete', this.state === 'complete');
     this.element.classList.toggle('yt2pp-error', this.state === 'error');
+    this.element.classList.toggle('yt2pp-show-progress', showProgressLabel);
 
     this.element.innerHTML = `
       <span class="yt2pp-btn-progress-fill" style="transform: scaleX(${progressScale.toFixed(4)})"></span>
+      ${showProgressLabel ? `<span class="yt2pp-btn-progress-label">${progressLabel}</span>` : ''}
       ${ICON_CLIP}
       <div class="yt2pp-tooltip">${tooltipText}</div>
     `;
@@ -76,7 +80,7 @@ export class ClipButton {
 
     this.isActive = true;
     this.state = 'loading';
-    this.progress = 12;
+    this.progress = 4;
     this.render();
 
     chrome.storage.sync.get({ videoOnly: false, resolution: '1080', downloadPath: '' }, async (items) => {
@@ -122,7 +126,7 @@ export class ClipButton {
       this.element.classList.remove('yt2pp-ready');
       this.render();
       this.onComplete();
-    }, 2000);
+    }, 1400);
   }
 
   setError() {

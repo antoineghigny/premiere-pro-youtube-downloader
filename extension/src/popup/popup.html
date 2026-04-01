@@ -43,15 +43,21 @@
       </div>
     </div>
 
-    <div class="pt-2 space-y-1">
-      <label class="checkbox-field">
+    <div class="pt-2 space-y-2">
+      <label class="toggle-option" for="audioOnly" data-toggle-option>
         <input type="checkbox" id="audioOnly">
-        <span class="text-sm font-semibold text-black">Audio Only (WAV)</span>
+        <span class="toggle-option__copy">
+          <span class="toggle-option__title">Audio Only</span>
+          <span class="toggle-option__meta">Export a WAV file for Premiere</span>
+        </span>
       </label>
 
-      <label class="checkbox-field">
+      <label class="toggle-option" for="videoOnly" data-toggle-option>
         <input type="checkbox" id="videoOnly">
-        <span class="text-sm font-semibold text-black">Video Only (No Audio)</span>
+        <span class="toggle-option__copy">
+          <span class="toggle-option__title">Video Only</span>
+          <span class="toggle-option__meta">Skip audio in the downloaded media</span>
+        </span>
       </label>
     </div>
 

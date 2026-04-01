@@ -27,7 +27,7 @@
   overflow: hidden;
   border-radius: 10px;
   outline: none;
-  transition: opacity 0.1s, background-color 0.15s ease;
+  transition: opacity 0.12s ease, background-color 0.18s ease;
 }
 
 .ytp-big-mode .yt2pp-btn {
@@ -46,36 +46,58 @@
   pointer-events: none;
   position: relative;
   z-index: 1;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 .yt2pp-btn-progress-fill {
   position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 4px;
-  right: 4px;
+  top: 5px;
+  bottom: 5px;
+  left: 3px;
+  right: 3px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(97, 22, 255, 0.92) 0%, rgba(128, 72, 255, 0.92) 100%);
   transform: scaleX(0);
   transform-origin: left center;
   opacity: 0;
-  transition: transform 0.14s linear, opacity 0.14s ease, background-color 0.14s ease;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease, background-color 0.18s ease;
   pointer-events: none;
   z-index: 0;
+  will-change: transform;
 }
 
-.yt2pp-btn-text {
-  position: relative;
-  z-index: 1;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+.yt2pp-btn-progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  transform: translateY(2px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 2;
 }
 
 .yt2pp-btn.yt2pp-busy .yt2pp-btn-progress-fill,
 .yt2pp-btn.yt2pp-complete .yt2pp-btn-progress-fill,
 .yt2pp-btn.yt2pp-error .yt2pp-btn-progress-fill {
   opacity: 1;
+}
+
+.yt2pp-btn.yt2pp-show-progress svg {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.yt2pp-btn.yt2pp-show-progress .yt2pp-btn-progress-label {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .yt2pp-btn.yt2pp-complete .yt2pp-btn-progress-fill {
