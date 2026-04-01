@@ -1,0 +1,135 @@
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@import "./theme.css";
+
+/* ============================================================
+   YT2Premiere - Player Controls
+   ============================================================ */
+
+.yt2pp-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.yt2pp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 36px;
+  margin: 0;
+  border: none;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  outline: none;
+  transition: opacity 0.1s, background-color 0.15s ease;
+}
+
+.ytp-big-mode .yt2pp-btn {
+  width: 54px;
+}
+
+.yt2pp-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.yt2pp-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
+}
+
+.yt2pp-btn-progress-fill {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 4px;
+  right: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(97, 22, 255, 0.92) 0%, rgba(128, 72, 255, 0.92) 100%);
+  transform: scaleX(0);
+  transform-origin: left center;
+  opacity: 0;
+  transition: transform 0.14s linear, opacity 0.14s ease, background-color 0.14s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.yt2pp-btn-text {
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.yt2pp-btn.yt2pp-busy .yt2pp-btn-progress-fill,
+.yt2pp-btn.yt2pp-complete .yt2pp-btn-progress-fill,
+.yt2pp-btn.yt2pp-error .yt2pp-btn-progress-fill {
+  opacity: 1;
+}
+
+.yt2pp-btn.yt2pp-complete .yt2pp-btn-progress-fill {
+  background: rgba(34, 197, 94, 0.92);
+}
+
+.yt2pp-btn.yt2pp-error .yt2pp-btn-progress-fill {
+  background: rgba(239, 68, 68, 0.92);
+}
+
+/* Tooltip */
+.yt2pp-btn .yt2pp-tooltip {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 12px;
+  padding: 5px 9px;
+  background: rgba(28, 28, 28, 0.9);
+  color: #fff;
+  font-size: 12px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.yt2pp-btn:hover .yt2pp-tooltip { display: block; }
+
+/* Separator */
+.yt2pp-separator {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 6px;
+}
+
+/* States */
+.yt2pp-btn.yt2pp-active,
+.yt2pp-btn.yt2pp-busy,
+.yt2pp-btn.yt2pp-complete {
+  color: #fff !important;
+}
+
+.yt2pp-btn.yt2pp-ready {
+  color: #fff !important;
+  background: rgba(97, 22, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(97, 22, 255, 0.4);
+}
+
+.yt2pp-btn.yt2pp-disabled { opacity: 0.3; cursor: default; }
+.yt2pp-btn.yt2pp-marker-set {
+  background: rgba(97, 22, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(97, 22, 255, 0.45);
+}
+
+/* Clip Overlays */
+.yt2pp-clip-overlay { @apply absolute top-0 h-full bg-main/30 z-[41] hidden rounded-sm; }
+.yt2pp-clip-marker { @apply absolute -top-[2px] w-[2px] h-[calc(100%+4px)] bg-main z-[42] hidden rounded-full; }

@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <script src="./lib/CSInterface.js"></script>
+        <script src="./app.js"></script>
+        <script type="text/javascript">
+            window.onload = function () {
+                var csInterface = new CSInterface();
+                var extensionRoot = csInterface.getSystemPath(SystemPath.EXTENSION) + "/";
+
+                var child_process = require('child_process');
+                var path = require('path');
+
+                /*
+                // Construct the path to the app.js file
+                var appJsPath = path.join(extensionRoot, 'app.js');
+
+                // Execute the app.js script
+                child_process.exec('node "' + appJsPath + '"', function(err, stdout, stderr) {
+                    if (err) {
+                        console.error('Error running app.js:', err);
+                        return;
+                    }
+                    console.log('app.js stdout:', stdout);
+                    console.error('app.js stderr:', stderr);
+                });
+                */
+                var http = require('http');
+
+                var hostname = '127.0.0.1';
+                var port = 3000;
+
+                function handleConnection(req, res){
+                    res.statusCode = 200;
+                    if(req.method == "GET"){
+                        res.setHeader('Content-Type', 'text/plain');
+                        res.end('Premiere is alive');
+                    }
+                    if(req.method == "POST"){
+                        var data = []
+                        req.on('data', function(chunk){
+                            data.push(chunk)
+                        })
+                        req.on('end', function(){
+                            var parsed_data = JSON.parse(data);
+                            console.log("\nExtendScript code to be executed :")
+                            console.log(parsed_data["to_eval"]);
+                            var cs = new CSInterface;
+                            cs.evalScript(parsed_data["to_eval"], function(extendScript_return){
+                                console.log("ExtendScript sent back :")
+                                console.log(extendScript_return);
+                                res.setHeader('Content-Type', 'text/plain');
+                                res.end(extendScript_return);
+                            });
+                        })
+                    }
+                }
+
+                var server = http.createServer(handleConnection);
+
+                server.listen(port, hostname, function(){
+                    console.log('Server running at http://' + String(hostname) + ':' + String(port));
+                });
+            }
+        </script>
+    </head>
+
+    <body>
+        <div>
+            <p>Pymiere is ready to receive instruction from Python</p>
+        </div>
+    </body>
+</html>

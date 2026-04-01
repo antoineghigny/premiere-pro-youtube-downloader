@@ -1,0 +1,10 @@
+@theme {
+  --color-grey: #A7A3C2;
+  --color-grey-light: #D5CEEA;
+  --color-grey-lighter: #F8F5FF;
+  --color-black: #2A2C40;
+  --color-main: #6116FF;
+  --color-btnColor: #6116FF;
+  --color-btnBorder: #24008C;
+  --font-epilogue: "Epilogue", sans-serif;
+}

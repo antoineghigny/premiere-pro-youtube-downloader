@@ -1,0 +1,7 @@
+Flask>=3.0.0
+Flask-Cors>=4.0.0
+Flask-SocketIO>=5.3.6
+yt-dlp>=2024.04.09
+pymiere>=1.4.1
+psutil>=5.9.6
+pygame>=2.5.2

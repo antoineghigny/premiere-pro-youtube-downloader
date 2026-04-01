@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html class="bg-white">
+<head>
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;600;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body class="p-6">
+  <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-2">
+      <span class="status-dot offline" id="status-dot"></span>
+      <h1 class="text-xl font-black tracking-tight text-black">YT2PREMIERE</h1>
+    </div>
+    <div class="text-[10px] font-semibold text-grey" id="version">v3.0.0</div>
+  </div>
+
+  <div class="space-y-4">
+    <div>
+      <label class="field-label" for="resolution">Resolution</label>
+      <select id="resolution" class="field-input">
+        <option value="2160">4K (2160p)</option>
+        <option value="1440">1440p</option>
+        <option value="1080" selected>1080p</option>
+        <option value="720">720p</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="field-label" for="downloadPath">Download Path</label>
+      <input type="text" id="downloadPath" class="field-input" placeholder="Auto: Project folder">
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="field-label text-[10px]" for="secondsBefore">Sec. Before</label>
+        <input type="number" id="secondsBefore" class="field-input" value="15" min="0">
+      </div>
+      <div>
+        <label class="field-label text-[10px]" for="secondsAfter">Sec. After</label>
+        <input type="number" id="secondsAfter" class="field-input" value="15" min="0">
+      </div>
+    </div>
+
+    <div class="pt-2 space-y-1">
+      <label class="checkbox-field">
+        <input type="checkbox" id="audioOnly">
+        <span class="text-sm font-semibold text-black">Audio Only (WAV)</span>
+      </label>
+
+      <label class="checkbox-field">
+        <input type="checkbox" id="videoOnly">
+        <span class="text-sm font-semibold text-black">Video Only (No Audio)</span>
+      </label>
+    </div>
+
+    <button class="py-button" id="save-btn">
+      <span>Save Settings</span>
+    </button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
