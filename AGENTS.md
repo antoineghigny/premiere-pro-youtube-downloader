@@ -9,7 +9,7 @@
 `cd extension && npm run dev` starts webpack watch mode for extension work.  
 `cd extension && npm run build` creates the production Chrome bundle.  
 `cd backend && python server.py` starts the local API on `127.0.0.1:3001`.  
-`build.bat` runs the full Windows release flow: extension build, PyInstaller backend, staging under `dist/staging/`, and NSIS packaging when `makensis` is available.
+`cd backend && python -m PyInstaller YT2Premiere.spec --noconfirm --clean --distpath dist --workpath build` validates the packaged Windows backend. GitHub Actions `.github/workflows/release.yml` is the canonical installer build path.
 
 ## Coding Style & Naming Conventions
 Use the surrounding style instead of introducing a formatter footprint. TypeScript is strict-mode, uses 2-space indentation, semicolons, and camelCase identifiers and filenames such as `clipOverlay.ts` or `timeUtils.ts`. Python uses 4-space indentation, snake_case functions/modules, and keeps route handlers thin by delegating logic to helper modules. Keep CSS in `extension/src/styles/` and reuse existing Tailwind/theme tokens before adding new ones.

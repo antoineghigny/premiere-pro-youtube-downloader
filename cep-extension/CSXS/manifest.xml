@@ -29,7 +29,7 @@
 					</CEFCommandLine>
 				</Resources>
 				<Lifecycle>
-					<AutoVisible>true</AutoVisible>
+					<AutoVisible>false</AutoVisible>
 					<StartOn>
 						<Event>com.adobe.csxs.events.ApplicationActivate</Event>
                     </StartOn>

@@ -10,8 +10,6 @@ RequestExecutionLevel admin
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_RUN "$INSTDIR\exec\YT2Premiere.exe"
-!define MUI_FINISHPAGE_RUN_TEXT "Launch YT2Premiere"
 !define MUI_FINISHPAGE_SHOWREADME ""
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "View Chrome Extension setup instructions"
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION ShowInstructions
@@ -57,9 +55,6 @@ Section 'Install'
     SetOutPath '$INSTDIR\chrome-extension'
     File /r '..\dist\staging\chrome-extension\*.*'
 
-    ; Startup shortcut
-    CreateShortcut '$SMSTARTUP\YT2Premiere.lnk' '$INSTDIR\exec\YT2Premiere.exe'
-
     ; Desktop shortcut
     CreateShortcut '$DESKTOP\YT2Premiere.lnk' '$INSTDIR\exec\YT2Premiere.exe'
 
@@ -97,7 +92,6 @@ Section 'Uninstall'
     RMDir /r '$PROGRAMFILES64\Common Files\Adobe\CEP\extensions\com.yt2premiere.cep'
 
     ; Remove shortcuts
-    Delete '$SMSTARTUP\YT2Premiere.lnk'
     Delete '$DESKTOP\YT2Premiere.lnk'
 
     ; Remove registry entries

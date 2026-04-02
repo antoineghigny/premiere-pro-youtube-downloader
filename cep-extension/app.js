@@ -90,7 +90,7 @@ function launchBackend() {
             return;
         }
         try {
-            var child = spawn(winExecutablePath, [], { detached: true, stdio: 'ignore' });
+            var child = spawn(winExecutablePath, [], { detached: true, stdio: 'ignore', windowsHide: true });
             child.unref();
         } catch (error) {
             console.error('Could not launch Windows backend:', error);
