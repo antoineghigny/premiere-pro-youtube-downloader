@@ -3,7 +3,9 @@ import type { DownloadProgressState } from '../api/contracts';
 import {
   createRequestId,
   getExtensionSettings,
+  pickDownloadFolder,
   registerDownloadHandlers,
+  saveExtensionSettings,
   sendDownloadRequest,
   unsubscribeFromDownload,
 } from '../api/serverApi';
@@ -92,19 +94,39 @@ export class ClipButton {
     const url = getVideoUrl();
     if (!url) return;
 
-    this.isActive = true;
-    this.state = 'loading';
-    this.progress = 0;
-    this.progressLabel = 'Prep';
-    this.isIndeterminate = true;
-    this.render();
-
     try {
       const settings = await getExtensionSettings();
+      let downloadPath = String(settings.downloadPath ?? '').trim();
+      if (settings.askDownloadPathEachTime) {
+        const pickedPath = await pickDownloadFolder(
+          'Choose folder for clip downloads',
+          downloadPath,
+        );
+        if (!pickedPath) {
+          this.progress = 0;
+          this.progressLabel = '';
+          this.isIndeterminate = false;
+          this.updateMarkers(this.inTime, this.outTime);
+          this.isActive = false;
+          return;
+        }
+        downloadPath = pickedPath;
+        if (downloadPath !== settings.downloadPath) {
+          await saveExtensionSettings({
+            ...settings,
+            downloadPath,
+          });
+        }
+      }
       const requestId = createRequestId();
-      const audioOnly = Boolean(settings.audioOnly ?? settings.downloadMP3);
-      const videoOnly = Boolean(settings.videoOnly) && !audioOnly;
+      const videoOnly = Boolean(settings.videoOnly);
 
+      this.isActive = true;
+      this.state = 'loading';
+      this.progress = 0;
+      this.progressLabel = 'Prep';
+      this.isIndeterminate = true;
+      this.render();
       this.activeRequestId = requestId;
       registerDownloadHandlers(requestId, {
         onProgress: (status) => this.setProgress(status),
@@ -119,12 +141,11 @@ export class ClipButton {
         requestId,
         videoUrl: url,
         downloadType: 'clip',
-        audioOnly,
         clipIn: Math.min(this.inTime!, this.outTime!),
         clipOut: Math.max(this.inTime!, this.outTime!),
         videoOnly,
         resolution: settings.resolution,
-        downloadPath: settings.downloadPath,
+        downloadPath,
       });
       if (!ok) {
         unsubscribeFromDownload(requestId);
@@ -134,7 +155,7 @@ export class ClipButton {
         this.setError();
       }
     } catch (error) {
-      console.error('[YT2PP] Could not load settings:', error);
+      console.error('[YT2PP] Clip action failed:', error);
       this.setError();
     }
   }

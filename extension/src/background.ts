@@ -17,6 +17,7 @@ type RuntimeMessage =
   | { type: 'GET_SETTINGS' }
   | { type: 'SAVE_SETTINGS'; settings: ExtensionSettings }
   | { type: 'CHECK_BACKEND_HEALTH' }
+  | { type: 'PICK_FOLDER'; title: string; initialPath?: string }
   | { type: 'START_DOWNLOAD'; request: DownloadRequest }
   | { type: 'GET_DOWNLOAD_STATUS'; requestId: string }
   | { type: 'STOP_TRACKING_DOWNLOAD'; requestId: string };
@@ -24,7 +25,7 @@ type RuntimeMessage =
 let socket: Socket | null = null;
 const activeDownloads = new Map<string, ActiveDownload>();
 const DOWNLOAD_STATUS_RETENTION_MS = 60000;
-const LEGACY_SETTING_KEYS = ['secondsBefore', 'secondsAfter'];
+const LEGACY_SETTING_KEYS = ['secondsBefore', 'secondsAfter', 'audioOnly', 'downloadMP3', 'clipAudioOnly'];
 
 function createInitialDownloadStatus(): DownloadProgressState {
   return {
@@ -255,6 +256,15 @@ function getStoredSettings(): Promise<ExtensionSettings> {
       resolve({
         ...DEFAULT_SETTINGS,
         ...(settings as Partial<ExtensionSettings>),
+        askAudioPathEachTime: Boolean(
+          (settings as Partial<ExtensionSettings>).askAudioPathEachTime
+          ?? DEFAULT_SETTINGS.askAudioPathEachTime
+        ),
+        askDownloadPathEachTime: Boolean(
+          (settings as Partial<ExtensionSettings>).askDownloadPathEachTime
+          ?? DEFAULT_SETTINGS.askDownloadPathEachTime
+        ),
+        videoOnly: Boolean((settings as Partial<ExtensionSettings>).videoOnly ?? DEFAULT_SETTINGS.videoOnly),
       });
     });
   });
@@ -294,6 +304,32 @@ async function checkBackendHealth(): Promise<boolean> {
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+async function pickFolder(title: string, initialPath = '') {
+  try {
+    const response = await postJson('/pick-folder', {
+      title,
+      initialPath,
+    });
+    const data = await response.json().catch(() => ({} as { success?: boolean; cancelled?: boolean; path?: string; error?: string }));
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error ?? 'Folder picker request failed.',
+      };
+    }
+    return {
+      success: Boolean(data.success),
+      cancelled: Boolean(data.cancelled),
+      path: typeof data.path === 'string' ? data.path : '',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Could not open folder picker',
+    };
   }
 }
 
@@ -363,6 +399,10 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
 
       case 'CHECK_BACKEND_HEALTH':
         sendResponse({ healthy: await checkBackendHealth() });
+        return;
+
+      case 'PICK_FOLDER':
+        sendResponse(await pickFolder(message.title, message.initialPath ?? ''));
         return;
 
       case 'START_DOWNLOAD':

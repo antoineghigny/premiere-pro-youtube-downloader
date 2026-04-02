@@ -1,16 +1,18 @@
 export interface ExtensionSettings {
   resolution: string;
   downloadPath: string;
-  audioOnly: boolean;
-  downloadMP3: boolean;
+  audioDownloadPath: string;
+  askAudioPathEachTime: boolean;
+  askDownloadPathEachTime: boolean;
   videoOnly: boolean;
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   resolution: '1080',
   downloadPath: '',
-  audioOnly: false,
-  downloadMP3: false,
+  audioDownloadPath: '',
+  askAudioPathEachTime: false,
+  askDownloadPathEachTime: false,
   videoOnly: false,
 };
 

@@ -23,6 +23,9 @@ type RuntimeResponse = {
   healthy?: boolean;
   requestId?: string;
   found?: boolean;
+  cancelled?: boolean;
+  path?: string;
+  backendSynced?: boolean;
   status?: DownloadProgressState;
 };
 
@@ -232,4 +235,35 @@ export async function getExtensionSettings(): Promise<ExtensionSettings> {
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
+}
+
+export async function saveExtensionSettings(settings: ExtensionSettings): Promise<boolean> {
+  try {
+    const response = await sendRuntimeMessage<RuntimeResponse>({
+      type: 'SAVE_SETTINGS',
+      settings,
+    });
+    return Boolean(response.success);
+  } catch {
+    return false;
+  }
+}
+
+export async function pickDownloadFolder(title: string, initialPath = ''): Promise<string | null> {
+  const response = await sendRuntimeMessage<RuntimeResponse>({
+    type: 'PICK_FOLDER',
+    title,
+    initialPath,
+  });
+
+  if (response.cancelled) {
+    return null;
+  }
+
+  if (!response.success) {
+    throw new Error(response.error ?? 'Could not open folder picker');
+  }
+
+  const selectedPath = String(response.path ?? '').trim();
+  return selectedPath || null;
 }

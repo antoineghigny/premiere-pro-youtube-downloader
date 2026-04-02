@@ -3,7 +3,9 @@ import type { DownloadProgressState } from '../api/contracts';
 import {
   createRequestId,
   getExtensionSettings,
+  pickDownloadFolder,
   registerDownloadHandlers,
+  saveExtensionSettings,
   sendDownloadRequest,
   unsubscribeFromDownload,
 } from '../api/serverApi';
@@ -63,19 +65,35 @@ export class DownloadButton {
     const url = getVideoUrl();
     if (!url) return;
 
-    this.isActive = true;
-    this.state = 'loading';
-    this.progress = 0;
-    this.progressLabel = 'Prep';
-    this.isIndeterminate = true;
-    this.render();
-
     try {
       const settings = await getExtensionSettings();
+      let downloadPath = String(settings.downloadPath ?? '').trim();
+      if (settings.askDownloadPathEachTime) {
+        const pickedPath = await pickDownloadFolder(
+          'Choose folder for video downloads',
+          downloadPath,
+        );
+        if (!pickedPath) {
+          this.reset();
+          return;
+        }
+        downloadPath = pickedPath;
+        if (downloadPath !== settings.downloadPath) {
+          await saveExtensionSettings({
+            ...settings,
+            downloadPath,
+          });
+        }
+      }
       const requestId = createRequestId();
-      const audioOnly = Boolean(settings.audioOnly ?? settings.downloadMP3);
-      const videoOnly = Boolean(settings.videoOnly) && !audioOnly;
+      const videoOnly = Boolean(settings.videoOnly);
 
+      this.isActive = true;
+      this.state = 'loading';
+      this.progress = 0;
+      this.progressLabel = 'Prep';
+      this.isIndeterminate = true;
+      this.render();
       this.activeRequestId = requestId;
       registerDownloadHandlers(requestId, {
         onProgress: (status) => this.setProgress(status),
@@ -89,11 +107,11 @@ export class DownloadButton {
       const ok = await sendDownloadRequest({
         requestId,
         videoUrl: url,
-        downloadType: audioOnly ? 'audio' : 'full',
-        audioOnly,
+        downloadType: 'full',
+        audioOnly: false,
         videoOnly,
         resolution: settings.resolution,
-        downloadPath: settings.downloadPath,
+        downloadPath,
       });
       if (!ok) {
         unsubscribeFromDownload(requestId);
@@ -103,7 +121,7 @@ export class DownloadButton {
         this.setError();
       }
     } catch (error) {
-      console.error('[YT2PP] Could not load settings:', error);
+      console.error('[YT2PP] Video action failed:', error);
       this.setError();
     }
   }

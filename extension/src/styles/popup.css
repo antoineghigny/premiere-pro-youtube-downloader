@@ -30,44 +30,65 @@
   @apply w-full border-2 border-grey-light rounded-lg p-2 mb-4 focus:border-main outline-none transition-colors;
 }
 
-.toggle-option {
-  @apply flex items-center rounded-2xl border border-grey-light/80 bg-white px-4 py-3 cursor-pointer transition-all duration-200;
+.checkbox-option {
+  @apply relative flex items-start gap-3 rounded-2xl border border-grey-light/80 bg-white px-4 py-3 cursor-pointer transition-all duration-200;
   box-shadow: 0 10px 24px rgba(42, 44, 64, 0.05);
 }
 
-.toggle-option:hover {
+.checkbox-option:hover {
   @apply border-main/40;
   transform: translateY(-1px);
   box-shadow: 0 14px 30px rgba(42, 44, 64, 0.08);
 }
 
-.toggle-option input {
+.checkbox-option input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
 
-.toggle-option__copy {
+.checkbox-option__box {
+  @apply mt-0.5 relative h-5 w-5 shrink-0 rounded-md border border-grey-light bg-white;
+  box-shadow: inset 0 1px 2px rgba(42, 44, 64, 0.08);
+}
+
+.checkbox-option input:checked + .checkbox-option__box {
+  @apply border-main bg-main;
+}
+
+.checkbox-option input:checked + .checkbox-option__box::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-option__copy {
   @apply flex flex-col gap-0.5;
 }
 
-.toggle-option__title {
+.checkbox-option__title {
   @apply text-sm font-bold text-black;
 }
 
-.toggle-option__meta {
+.checkbox-option__meta {
   @apply text-[11px] leading-4 text-grey;
 }
 
-.toggle-option.is-selected {
+.checkbox-option.is-selected {
   @apply border-main bg-main/8;
   box-shadow: inset 0 0 0 1px rgba(97, 22, 255, 0.28), 0 16px 32px rgba(97, 22, 255, 0.12);
 }
 
-.toggle-option.is-selected .toggle-option__title {
+.checkbox-option.is-selected .checkbox-option__title {
   @apply text-main;
 }
 
-.toggle-option.is-selected .toggle-option__meta {
+.checkbox-option.is-selected .checkbox-option__meta {
   color: rgba(97, 22, 255, 0.85);
 }

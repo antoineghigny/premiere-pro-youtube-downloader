@@ -11,7 +11,12 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('notification_sound.mp3', '.'), *yt_dlp_ejs_datas],
-    hiddenimports=['engineio.async_drivers.threading', *yt_dlp_ejs_hiddenimports],
+    hiddenimports=[
+        'engineio.async_drivers.threading',
+        'tkinter',
+        'tkinter.filedialog',
+        *yt_dlp_ejs_hiddenimports,
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

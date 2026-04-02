@@ -32,6 +32,7 @@ from downloader import (
     DOWNLOAD_STAGE_COMPLETE,
     DOWNLOAD_STAGE_FAILED,
 )
+from dialogs import pick_folder
 from premiere import is_premiere_running, import_video_to_premiere, get_default_download_path
 
 app = Flask(__name__)
@@ -144,6 +145,28 @@ def update_settings():
     return jsonify(success=True, settings=saved_settings), 200
 
 
+@app.route('/pick-folder', methods=['POST'])
+def pick_folder_route():
+    data = request.get_json(silent=True) or {}
+    logger.info(
+        'Opening folder picker: title=%s initial_path=%s',
+        data.get('title') or 'Select folder',
+        data.get('initialPath') or '',
+    )
+    result = pick_folder(
+        initial_path=data.get('initialPath'),
+        title=data.get('title') or 'Select folder',
+    )
+    if result.get('cancelled'):
+        logger.info('Folder picker cancelled')
+        return jsonify(success=False, cancelled=True), 200
+    if not result.get('success'):
+        logger.warning('Folder picker failed: %s', result.get('error') or 'Unknown error')
+        return jsonify(success=False, cancelled=False, error=result.get('error') or 'Folder picker failed'), 500
+    logger.info('Folder picker selected path: %s', result.get('path') or '')
+    return jsonify(success=True, path=result.get('path') or ''), 200
+
+
 @app.route('/handle-video-url', methods=['POST'])
 def handle_video_url():
     data = request.get_json()
@@ -164,7 +187,6 @@ def handle_video_url():
 
     settings = normalize_settings(data, base_settings=load_settings())
     resolution = settings['resolution']
-    download_mp3 = settings['audioOnly']
     video_only = settings['videoOnly']
     user_path = settings['downloadPath']
     download_path = user_path if user_path else get_default_download_path()
@@ -191,17 +213,14 @@ def handle_video_url():
         try:
             _emit_download_stage(request_id, DOWNLOAD_STAGE_PREPARING, detail='Queueing download')
             if download_type == 'full':
-                if download_mp3:
-                    file_path = download_audio(video_url, download_path, request_id=request_id)
-                else:
-                    file_path = download_video(
-                        video_url,
-                        resolution,
-                        download_path,
-                        download_mp3,
-                        video_only,
-                        request_id=request_id,
-                    )
+                file_path = download_video(
+                    video_url,
+                    resolution,
+                    download_path,
+                    False,
+                    video_only,
+                    request_id=request_id,
+                )
             elif download_type == 'audio':
                 file_path = download_audio(video_url, download_path, request_id=request_id)
             elif download_type == 'clip':
@@ -211,7 +230,7 @@ def handle_video_url():
                     download_path,
                     clip_start,
                     clip_end,
-                    download_mp3,
+                    False,
                     video_only,
                     request_id=request_id,
                 )

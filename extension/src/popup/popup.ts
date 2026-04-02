@@ -1,12 +1,22 @@
 import '../styles/popup.css';
 import { DEFAULT_SETTINGS, type ExtensionSettings } from '../api/contracts';
 
-function getAudioOnlyCheckbox() {
-  return document.getElementById('audioOnly') as HTMLInputElement;
-}
+type RuntimeResponse = {
+  healthy?: boolean;
+};
+
+let currentSettings: ExtensionSettings = { ...DEFAULT_SETTINGS };
 
 function getVideoOnlyCheckbox() {
   return document.getElementById('videoOnly') as HTMLInputElement;
+}
+
+function getAskDownloadPathEachTimeCheckbox() {
+  return document.getElementById('askDownloadPathEachTime') as HTMLInputElement;
+}
+
+function getDownloadPathInput() {
+  return document.getElementById('downloadPath') as HTMLInputElement;
 }
 
 function syncToggleOptionStyles() {
@@ -34,7 +44,7 @@ async function checkStatus() {
   const dot = document.getElementById('status-dot')!;
 
   try {
-    const response = await sendRuntimeMessage<{ healthy?: boolean }>({ type: 'CHECK_BACKEND_HEALTH' });
+    const response = await sendRuntimeMessage<RuntimeResponse>({ type: 'CHECK_BACKEND_HEALTH' });
     dot.className = response.healthy ? 'status-dot online' : 'status-dot offline';
   } catch {
     dot.className = 'status-dot offline';
@@ -43,26 +53,28 @@ async function checkStatus() {
 
 async function loadSettings() {
   const items = await sendRuntimeMessage<ExtensionSettings>({ type: 'GET_SETTINGS' });
-  const audioOnly = Boolean(items.audioOnly ?? items.downloadMP3);
+  currentSettings = {
+    ...DEFAULT_SETTINGS,
+    ...items,
+  };
 
-  (document.getElementById('resolution') as HTMLSelectElement).value = items.resolution;
-  (document.getElementById('downloadPath') as HTMLInputElement).value = items.downloadPath;
-  getAudioOnlyCheckbox().checked = audioOnly;
-  getVideoOnlyCheckbox().checked = Boolean(items.videoOnly) && !audioOnly;
+  (document.getElementById('resolution') as HTMLSelectElement).value = currentSettings.resolution;
+  getDownloadPathInput().value = currentSettings.downloadPath;
+  getVideoOnlyCheckbox().checked = Boolean(currentSettings.videoOnly);
+  getAskDownloadPathEachTimeCheckbox().checked = Boolean(currentSettings.askDownloadPathEachTime);
   syncToggleOptionStyles();
 }
 
 async function saveSettings() {
-  const audioOnly = getAudioOnlyCheckbox().checked;
-  const settings: ExtensionSettings = {
+  currentSettings = {
+    ...currentSettings,
     resolution: (document.getElementById('resolution') as HTMLSelectElement).value,
-    downloadPath: (document.getElementById('downloadPath') as HTMLInputElement).value,
-    audioOnly,
-    downloadMP3: audioOnly,
-    videoOnly: getVideoOnlyCheckbox().checked && !audioOnly,
+    downloadPath: getDownloadPathInput().value.trim(),
+    videoOnly: getVideoOnlyCheckbox().checked,
+    askDownloadPathEachTime: getAskDownloadPathEachTimeCheckbox().checked,
   };
 
-  await sendRuntimeMessage<{ success?: boolean }>({ type: 'SAVE_SETTINGS', settings });
+  await sendRuntimeMessage<{ success?: boolean }>({ type: 'SAVE_SETTINGS', settings: currentSettings });
 
   const btn = document.getElementById('save-btn')!;
   btn.textContent = 'Saved!';
@@ -70,27 +82,16 @@ async function saveSettings() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  getAudioOnlyCheckbox().addEventListener('change', () => {
-    if (getAudioOnlyCheckbox().checked) {
-      getVideoOnlyCheckbox().checked = false;
-    }
-    syncToggleOptionStyles();
-  });
-
-  getVideoOnlyCheckbox().addEventListener('change', () => {
-    if (getVideoOnlyCheckbox().checked) {
-      getAudioOnlyCheckbox().checked = false;
-    }
-    syncToggleOptionStyles();
-  });
+  getVideoOnlyCheckbox().addEventListener('change', syncToggleOptionStyles);
+  getAskDownloadPathEachTimeCheckbox().addEventListener('change', syncToggleOptionStyles);
 
   void checkStatus();
   void loadSettings().catch(() => {
-    const audioOnly = DEFAULT_SETTINGS.audioOnly;
+    currentSettings = { ...DEFAULT_SETTINGS };
     (document.getElementById('resolution') as HTMLSelectElement).value = DEFAULT_SETTINGS.resolution;
-    (document.getElementById('downloadPath') as HTMLInputElement).value = DEFAULT_SETTINGS.downloadPath;
-    getAudioOnlyCheckbox().checked = audioOnly;
-    getVideoOnlyCheckbox().checked = DEFAULT_SETTINGS.videoOnly && !audioOnly;
+    getDownloadPathInput().value = DEFAULT_SETTINGS.downloadPath;
+    getVideoOnlyCheckbox().checked = DEFAULT_SETTINGS.videoOnly;
+    getAskDownloadPathEachTimeCheckbox().checked = DEFAULT_SETTINGS.askDownloadPathEachTime;
     syncToggleOptionStyles();
   });
   document.getElementById('save-btn')!.addEventListener('click', () => {

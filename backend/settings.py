@@ -29,7 +29,7 @@ LOG_FILE = os.path.join(SETTINGS_DIR, 'yt2premiere.log')
 DEFAULT_SETTINGS = {
     'resolution': '1080',
     'downloadPath': '',
-    'audioOnly': False,
+    'askDownloadPathEachTime': False,
     'videoOnly': False,
 }
 
@@ -66,18 +66,16 @@ def normalize_settings(raw_settings, base_settings=None):
     if not isinstance(download_path, str):
         download_path = ''
 
-    audio_only = _coerce_bool(
-        raw_settings.get('audioOnly', raw_settings.get('downloadMP3', settings['audioOnly'])),
-        settings['audioOnly'],
-    )
     video_only = _coerce_bool(raw_settings.get('videoOnly', settings['videoOnly']), settings['videoOnly'])
-    if audio_only:
-        video_only = False
+    ask_download_path_each_time = _coerce_bool(
+        raw_settings.get('askDownloadPathEachTime', settings['askDownloadPathEachTime']),
+        settings['askDownloadPathEachTime'],
+    )
 
     return {
         'resolution': resolution,
         'downloadPath': download_path.strip(),
-        'audioOnly': audio_only,
+        'askDownloadPathEachTime': ask_download_path_each_time,
         'videoOnly': video_only,
     }
 
