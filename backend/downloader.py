@@ -53,13 +53,13 @@ def _tool_exists(tool_path):
 
 if platform.system() == 'Windows':
     ffmpeg_path = _find_tool(
-        os.path.join(script_dir, 'ffmpeg_win', 'bin', 'ffmpeg.exe'),      # frozen exe layout
+        os.path.join(script_dir, 'ffmpeg_win', 'bin', 'ffmpeg.exe'),  # frozen exe layout
         os.path.join(base_path, 'tools', 'ffmpeg_win', 'bin', 'ffmpeg.exe'),  # dev layout
         'ffmpeg',  # system PATH fallback
     )
     yt_dlp_path = _find_tool(
-        os.path.join(script_dir, '_include', 'yt-dlp.exe'),               # frozen exe layout
-        os.path.join(base_path, 'tools', 'yt-dlp.exe'),                   # dev layout
+        os.path.join(script_dir, '_include', 'yt-dlp.exe'),  # frozen exe layout
+        os.path.join(base_path, 'tools', 'yt-dlp.exe'),  # dev layout
         'yt-dlp',
     )
     aria2c_path = _find_tool(
@@ -119,6 +119,8 @@ _info_cache_lock = threading.Lock()
 _info_cache_inflight = {}
 _local_media_cache = {}
 _local_media_cache_lock = threading.Lock()
+
+MAX_CACHE_SIZE = 100
 
 
 def set_socketio(sio):
@@ -199,6 +201,10 @@ def _get_cached_info(cache_key):
 
 def _store_cached_info(cache_key, value):
     with _info_cache_lock:
+        # LRU eviction if cache is full
+        if len(_info_cache) >= MAX_CACHE_SIZE:
+            oldest_key = next(iter(_info_cache))
+            _info_cache.pop(oldest_key, None)
         _info_cache[cache_key] = {
             'expires_at': time.time() + INFO_CACHE_TTL_SECONDS,
             'value': copy.deepcopy(value),
@@ -206,26 +212,29 @@ def _store_cached_info(cache_key, value):
 
 
 def _resolve_inflight_info(cache_key):
-    while True:
-        cached_value = _get_cached_info(cache_key)
-        if cached_value is not None:
-            return cached_value, None
+    # Check cache under lock to avoid TOCTOU race
+    with _info_cache_lock:
+        cached_entry = _info_cache.get(cache_key)
+        if cached_entry and cached_entry['expires_at'] >= time.time():
+            return copy.deepcopy(cached_entry['value']), None
 
-        with _info_cache_lock:
-            inflight_event = _info_cache_inflight.get(cache_key)
-            if inflight_event is None:
-                inflight_event = threading.Event()
-                _info_cache_inflight[cache_key] = inflight_event
-                return None, inflight_event
+        inflight_event = _info_cache_inflight.get(cache_key)
+        if inflight_event is None:
+            inflight_event = threading.Event()
+            _info_cache_inflight[cache_key] = inflight_event
+            return None, inflight_event
 
-        inflight_event.wait(timeout=15)
+    # Wait outside the lock for the inflight request to complete
+    inflight_event.wait(timeout=15)
+    # After waiting, loop back to check cache again (caller handles this)
+    return None, None
 
 
 def _complete_inflight_info(cache_key):
     with _info_cache_lock:
         inflight_event = _info_cache_inflight.pop(cache_key, None)
-    if inflight_event:
-        inflight_event.set()
+        if inflight_event:
+            inflight_event.set()
 
 
 def _emit_download_state(request_id, stage, percentage=None, detail=None, indeterminate=None):
@@ -394,11 +403,11 @@ def _make_progress_hook(request_id, phase_count, video_weight=0.85, stage=DOWNLO
     single 0-100% range.
 
     For 2-phase downloads (video+audio with bestvideo+bestaudio):
-      - Phase 1 (video): raw 0-100% → emitted 0-85%
-      - Phase 2 (audio): raw 0-100% → emitted 85-100%
+    - Phase 1 (video): raw 0-100% → emitted 0-85%
+    - Phase 2 (audio): raw 0-100% → emitted 85-100%
 
     For 1-phase downloads (single stream / audio-only):
-      - Straight 0-100%, no rescaling.
+    - Straight 0-100%, no rescaling.
 
     Phase transitions are detected from the active format id when available,
     otherwise we fall back to the filename.
@@ -504,12 +513,12 @@ def _get_base_ydl_opts(hook=None, allow_external_downloader=None):
     opts = _build_base_ydl_opts()
     if hook is not None:
         opts['progress_hooks'] = [hook]
-    opts['format_sort'] = ['lang', 'quality', 'res', 'fps', 'hdr:12', 'vcodec:avc1', 'acodec:m4a', 'ext:mp4']
-    opts['extractor_args'] = {
-        'youtube': {
-            'player_client': ['default'],
-        },
-    }
+        opts['format_sort'] = ['lang', 'quality', 'res', 'fps', 'hdr:12', 'vcodec:avc1', 'acodec:m4a', 'ext:mp4']
+        opts['extractor_args'] = {
+            'youtube': {
+                'player_client': ['default'],
+            },
+        }
     if allow_external_downloader is None:
         # yt-dlp disables granular aria2 RPC progress upstream, so tracked
         # downloads need the native downloader to avoid coarse jumps.
@@ -569,9 +578,20 @@ def _build_format_sort(video_only=False):
 
 def _extract_info(video_url, format_spec=None):
     cache_key = _make_info_cache_key(video_url, format_spec)
-    cached_value, inflight_event = _resolve_inflight_info(cache_key)
-    if cached_value is not None:
-        return cached_value
+
+    # Loop to handle inflight wait-and-retry
+    max_attempts = 3
+    for _ in range(max_attempts):
+        cached_value, inflight_event = _resolve_inflight_info(cache_key)
+        if cached_value is not None:
+            return cached_value
+
+        if inflight_event is None:
+            # No inflight event means we should make the request
+            break
+
+        # Wait for inflight request to complete, then retry cache lookup
+        inflight_event.wait(timeout=15)
 
     info_opts = _get_base_ydl_opts()
     if format_spec:
@@ -584,11 +604,10 @@ def _extract_info(video_url, format_spec=None):
                 processed_info = ydl.process_ie_result(info, download=False)
                 if processed_info:
                     info = processed_info
-        _store_cached_info(cache_key, info)
-        return copy.deepcopy(info)
+            _store_cached_info(cache_key, info)
+            return copy.deepcopy(info)
     finally:
-        if inflight_event is not None:
-            _complete_inflight_info(cache_key)
+        _complete_inflight_info(cache_key)
 
 
 def _is_direct_http_input(format_info):
@@ -650,10 +669,10 @@ def _run_ffmpeg_with_progress(ffmpeg_cmd, duration_seconds, request_id, stage=DO
         return_code = process.wait()
         stderr = process.stderr.read() if process.stderr else ''
 
-    if return_code != 0:
-        raise RuntimeError(stderr.strip() or f'ffmpeg failed with exit code {return_code}')
+        if return_code != 0:
+            raise RuntimeError(stderr.strip() or f'ffmpeg failed with exit code {return_code}')
 
-    _emit_progress(request_id, '100.0%', stage=stage, detail=detail)
+        _emit_progress(request_id, '100.0%', stage=stage, detail=detail)
 
 
 def _run_local_ffmpeg_trim(source_path, output_path, clip_start, clip_end, request_id=None, download_mp3=False, video_only=False):

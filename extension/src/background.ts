@@ -27,6 +27,17 @@ const activeDownloads = new Map<string, ActiveDownload>();
 const DOWNLOAD_STATUS_RETENTION_MS = 60000;
 const LEGACY_SETTING_KEYS = ['secondsBefore', 'secondsAfter', 'audioOnly', 'downloadMP3', 'clipAudioOnly'];
 
+// Periodic cleanup for orphaned downloads
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, download] of activeDownloads.entries()) {
+    const age = now - (download.status.updatedAt ?? 0);
+    if (age > DOWNLOAD_STATUS_RETENTION_MS * 2) {
+      stopTrackingDownload(id);
+    }
+  }
+}, 30000);
+
 function createInitialDownloadStatus(): DownloadProgressState {
   return {
     stage: 'preparing',

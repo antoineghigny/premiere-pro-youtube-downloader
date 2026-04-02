@@ -37,10 +37,10 @@ from premiere import is_premiere_running, import_video_to_premiere, get_default_
 
 app = Flask(__name__)
 
-TRUSTED_EXTENSION_ORIGINS = (
-    'chrome-extension://noloogahcbofnjjkpbeandcgoldejcic',
-    'chrome-extension://aidffebbdmdjibggcfkeihnljgambjjd',
-)
+# Load trusted extension IDs from environment or use defaults
+_DEFAULT_EXTENSION_IDS = 'noloogahcbofnjjkpbeandcgoldejcic,aidffebbdmdjibggcfkeihnljgambjjd'
+_extension_ids = os.environ.get('YT2PP_EXTENSION_IDS', _DEFAULT_EXTENSION_IDS).split(',')
+TRUSTED_EXTENSION_ORIGINS = tuple(f'chrome-extension://{eid.strip()}' for eid in _extension_ids if eid.strip())
 # Chrome may attribute extension-initiated localhost traffic to the active tab
 # origin, especially for Socket.IO/WebSocket requests triggered from YouTube.
 TRUSTED_WEB_ORIGINS = (
@@ -181,6 +181,11 @@ def handle_video_url():
 
     if not video_url:
         return jsonify(error="No video URL"), 400
+
+    # Validate YouTube URL
+    video_url_str = str(video_url).strip()
+    if 'youtube.com' not in video_url_str and 'youtu.be' not in video_url_str:
+        return jsonify(error="Only YouTube URLs are supported"), 400
 
     if download_type not in ('clip', 'full', 'audio'):
         return jsonify(error="Invalid download type"), 400

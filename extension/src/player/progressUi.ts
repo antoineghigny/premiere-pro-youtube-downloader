@@ -18,7 +18,7 @@ export function getProgressLabel(status: DownloadProgressState, currentProgress:
   if (!status.indeterminate) {
     const parsed = Number.parseFloat(String(status.percentage ?? ''));
     if (Number.isFinite(parsed)) {
-      return `${Math.max(0, Math.round(Math.max(currentProgress, parsed)))}%`;
+      return `${Math.round(Math.max(currentProgress, parsed))}%`;
     }
   }
   return getStageLabel(status.stage);
