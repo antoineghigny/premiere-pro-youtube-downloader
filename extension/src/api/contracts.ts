@@ -33,3 +33,22 @@ export interface DownloadRequest {
   videoOnly?: boolean;
   resolution?: string;
 }
+
+export type DownloadStage =
+  | 'preparing'
+  | 'resolving'
+  | 'downloading'
+  | 'clipping'
+  | 'importing'
+  | 'complete'
+  | 'failed';
+
+export interface DownloadProgressState {
+  stage: DownloadStage;
+  indeterminate: boolean;
+  percentage?: string;
+  detail?: string;
+  updatedAt?: number;
+  path?: string;
+  message?: string;
+}

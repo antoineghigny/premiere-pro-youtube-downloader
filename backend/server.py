@@ -21,14 +21,36 @@ import pygame.mixer
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, join_room, leave_room
 
-from downloader import set_socketio, download_video, download_audio, download_clip
+from downloader import (
+    set_socketio,
+    download_video,
+    download_audio,
+    download_clip,
+    _emit_download_stage,
+    DOWNLOAD_STAGE_PREPARING,
+    DOWNLOAD_STAGE_IMPORTING,
+    DOWNLOAD_STAGE_COMPLETE,
+    DOWNLOAD_STAGE_FAILED,
+)
 from premiere import is_premiere_running, import_video_to_premiere, get_default_download_path
 
 app = Flask(__name__)
 
-TRUSTED_EXTENSION_ORIGIN = 'chrome-extension://noloogahcbofnjjkpbeandcgoldejcic'
+TRUSTED_EXTENSION_ORIGINS = (
+    'chrome-extension://noloogahcbofnjjkpbeandcgoldejcic',
+    'chrome-extension://aidffebbdmdjibggcfkeihnljgambjjd',
+)
+# Chrome may attribute extension-initiated localhost traffic to the active tab
+# origin, especially for Socket.IO/WebSocket requests triggered from YouTube.
+TRUSTED_WEB_ORIGINS = (
+    'https://www.youtube.com',
+)
+TRUSTED_WEB_ORIGIN_PATHS = {
+    '/handle-video-url',
+}
 TRUSTED_ORIGIN_PATTERNS = (
-    re.compile(rf'^{re.escape(TRUSTED_EXTENSION_ORIGIN)}$'),
+    *(re.compile(rf'^{re.escape(origin)}$') for origin in TRUSTED_EXTENSION_ORIGINS),
+    *(re.compile(rf'^{re.escape(origin)}$') for origin in TRUSTED_WEB_ORIGINS),
 )
 
 
@@ -37,6 +59,15 @@ def is_allowed_origin(origin):
         return False
     normalized_origin = origin.strip()
     return any(pattern.fullmatch(normalized_origin) for pattern in TRUSTED_ORIGIN_PATTERNS)
+
+
+def is_allowed_request_origin(origin, path):
+    if not origin:
+        return False
+    normalized_origin = origin.strip()
+    if normalized_origin in TRUSTED_EXTENSION_ORIGINS:
+        return True
+    return path in TRUSTED_WEB_ORIGIN_PATHS and normalized_origin in TRUSTED_WEB_ORIGINS
 
 
 socketio = SocketIO(
@@ -53,7 +84,7 @@ set_socketio(socketio)
 @app.after_request
 def add_security_headers(response):
     origin = request.headers.get('Origin')
-    if origin and is_allowed_origin(origin):
+    if origin and is_allowed_request_origin(origin, request.path):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Vary'] = 'Origin'
     response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
@@ -68,7 +99,7 @@ def add_security_headers(response):
 def validate_request_origin():
     origin = request.headers.get('Origin')
     if request.method == 'OPTIONS':
-        if origin and not is_allowed_origin(origin):
+        if origin and not is_allowed_request_origin(origin, request.path):
             logger.warning('Blocked preflight request from origin %s to %s', origin, request.path)
             return jsonify(error='Origin not allowed'), 403
         return '', 204
@@ -77,7 +108,7 @@ def validate_request_origin():
         logger.warning('Blocked state-changing request without origin to %s', request.path)
         return jsonify(error='Origin required'), 403
 
-    if origin and not is_allowed_origin(origin):
+    if origin and not is_allowed_request_origin(origin, request.path):
         logger.warning('Blocked request from origin %s to %s', origin, request.path)
         return jsonify(error='Origin not allowed'), 403
     return None
@@ -143,6 +174,7 @@ def handle_video_url():
     def process():
         file_path = None
         try:
+            _emit_download_stage(request_id, DOWNLOAD_STAGE_PREPARING, detail='Queueing download')
             if download_type == 'full':
                 if download_mp3:
                     file_path = download_audio(video_url, download_path, request_id=request_id)
@@ -183,12 +215,32 @@ def handle_video_url():
             if not file_path:
                 raise RuntimeError('Download completed but no output file was produced')
 
+            _emit_download_stage(request_id, DOWNLOAD_STAGE_IMPORTING, detail='Importing into Premiere')
             import_video_to_premiere(file_path)
             play_notification_sound()
-            socketio.emit('download-complete', {'requestId': request_id, 'path': file_path}, to=request_id)
+            socketio.emit(
+                'download-complete',
+                {
+                    'requestId': request_id,
+                    'stage': DOWNLOAD_STAGE_COMPLETE,
+                    'path': file_path,
+                    'percentage': '100.0%',
+                    'indeterminate': False,
+                },
+                to=request_id,
+            )
         except Exception as e:
             logger.error(f"Processing error: {e}", exc_info=True)
-            socketio.emit('download-failed', {'requestId': request_id, 'message': str(e)}, to=request_id)
+            socketio.emit(
+                'download-failed',
+                {
+                    'requestId': request_id,
+                    'stage': DOWNLOAD_STAGE_FAILED,
+                    'message': str(e),
+                    'indeterminate': True,
+                },
+                to=request_id,
+            )
 
     thread = threading.Thread(target=process, daemon=True)
     thread.start()

@@ -73,6 +73,7 @@
   right: 4px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(97, 22, 255, 0.92) 0%, rgba(128, 72, 255, 0.92) 100%);
+  background-size: 200% 100%;
   transform: scaleX(0);
   transform-origin: left center;
   opacity: 0;
@@ -125,6 +126,16 @@
 
 .yt2pp-btn.yt2pp-error .yt2pp-btn-progress-fill {
   background: rgba(239, 68, 68, 0.92);
+}
+
+.yt2pp-btn.yt2pp-indeterminate .yt2pp-btn-progress-fill {
+  transform: scaleX(1);
+  animation: yt2pp-indeterminate-sweep 1.15s linear infinite;
+}
+
+@keyframes yt2pp-indeterminate-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: 0 0; }
 }
 
 /* Tooltip */

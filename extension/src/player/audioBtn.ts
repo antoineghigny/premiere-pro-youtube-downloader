@@ -1,10 +1,13 @@
 import { getVideoUrl } from '../utils/pageUtils';
+import type { DownloadProgressState } from '../api/contracts';
 import {
   createRequestId,
+  getExtensionSettings,
   registerDownloadHandlers,
   sendDownloadRequest,
   unsubscribeFromDownload,
 } from '../api/serverApi';
+import { getProgressLabel } from './progressUi';
 
 type ButtonState = 'idle' | 'loading' | 'progress' | 'complete' | 'error';
 
@@ -16,6 +19,8 @@ export class AudioButton {
   private state: ButtonState = 'idle';
   private isActive = false;
   private progress = 0;
+  private progressLabel = '';
+  private isIndeterminate = false;
   private activeRequestId: string | null = null;
 
   constructor() {
@@ -27,14 +32,19 @@ export class AudioButton {
   }
 
   private render() {
-    const progressScale = this.state === 'idle' ? 0 : Math.max(0, Math.min(100, this.progress)) / 100;
+    const progressScale = this.state === 'idle'
+      ? 0
+      : this.isIndeterminate
+        ? 1
+        : Math.max(0, Math.min(100, this.progress)) / 100;
     const showProgressLabel = this.state === 'loading' || this.state === 'progress' || this.state === 'complete';
-    const progressLabel = `${Math.max(0, Math.round(this.progress))}%`;
+    const progressLabel = this.progressLabel || `${Math.max(0, Math.round(this.progress))}%`;
 
     this.element.classList.toggle('yt2pp-busy', this.state === 'loading' || this.state === 'progress');
     this.element.classList.toggle('yt2pp-complete', this.state === 'complete');
     this.element.classList.toggle('yt2pp-error', this.state === 'error');
     this.element.classList.toggle('yt2pp-show-progress', showProgressLabel);
+    this.element.classList.toggle('yt2pp-indeterminate', showProgressLabel && this.isIndeterminate);
 
     this.element.innerHTML = `
       <span class="yt2pp-btn-progress-fill" style="transform: scaleX(${progressScale.toFixed(4)})"></span>
@@ -55,14 +65,17 @@ export class AudioButton {
 
     this.isActive = true;
     this.state = 'loading';
-    this.progress = 4;
+    this.progress = 0;
+    this.progressLabel = 'Prep';
+    this.isIndeterminate = true;
     this.render();
 
-    chrome.storage.sync.get({ downloadPath: '' }, async (items) => {
+    try {
+      const settings = await getExtensionSettings();
       const requestId = createRequestId();
       this.activeRequestId = requestId;
       registerDownloadHandlers(requestId, {
-        onProgress: (pct) => this.setProgress(pct),
+        onProgress: (status) => this.setProgress(status),
         onComplete: () => this.setComplete(),
         onFailed: (msg) => {
           console.error('[YT2PP] Audio download failed:', msg);
@@ -75,7 +88,7 @@ export class AudioButton {
         videoUrl: url,
         downloadType: 'audio',
         audioOnly: true,
-        downloadPath: items.downloadPath as string,
+        downloadPath: settings.downloadPath,
       });
       if (!ok) {
         unsubscribeFromDownload(requestId);
@@ -84,16 +97,21 @@ export class AudioButton {
         }
         this.setError();
       }
-    });
+    } catch (error) {
+      console.error('[YT2PP] Could not load settings:', error);
+      this.setError();
+    }
   }
 
-  setProgress(pct: string) {
+  setProgress(status: DownloadProgressState) {
     if (!this.isActive) return;
-    const parsed = Number.parseFloat(pct);
+    const parsed = Number.parseFloat(String(status.percentage ?? ''));
     if (Number.isFinite(parsed)) {
       this.progress = Math.max(this.progress, Math.min(parsed, 100));
     }
-    this.state = 'progress';
+    this.isIndeterminate = Boolean(status.indeterminate);
+    this.progressLabel = getProgressLabel(status, this.progress);
+    this.state = this.isIndeterminate ? 'loading' : 'progress';
     this.render();
   }
 
@@ -104,6 +122,8 @@ export class AudioButton {
     }
     this.state = 'complete';
     this.progress = 100;
+    this.progressLabel = '100%';
+    this.isIndeterminate = false;
     this.render();
     setTimeout(() => this.reset(), 1400);
   }
@@ -115,7 +135,9 @@ export class AudioButton {
     }
     this.state = 'error';
     this.isActive = false;
-    this.progress = Math.max(this.progress, 18);
+    this.progress = Math.max(this.progress, this.isIndeterminate ? 0 : 18);
+    this.progressLabel = 'Error';
+    this.isIndeterminate = true;
     this.render();
     setTimeout(() => this.reset(), 3000);
   }
@@ -132,6 +154,8 @@ export class AudioButton {
     this.isActive = false;
     this.state = 'idle';
     this.progress = 0;
+    this.progressLabel = '';
+    this.isIndeterminate = false;
     this.render();
   }
 }

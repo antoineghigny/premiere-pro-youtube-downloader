@@ -35,7 +35,7 @@ jobs:
 
       - name: Install Windows packaging dependencies
         shell: pwsh
-        run: choco install ffmpeg aria2 nsis -y --no-progress
+        run: choco install ffmpeg aria2 nsis deno -y --no-progress
 
       - name: Install extension dependencies
         working-directory: extension
@@ -80,6 +80,11 @@ jobs:
           $aria2Dir = Join-Path $execDir 'aria2c'
           New-Item -ItemType Directory -Force -Path $aria2Dir | Out-Null
           Copy-Item $aria2Exe (Join-Path $aria2Dir 'aria2c.exe')
+
+          $denoExe = (Get-Command deno -ErrorAction Stop).Source
+          $denoDir = Join-Path $execDir 'deno'
+          New-Item -ItemType Directory -Force -Path $denoDir | Out-Null
+          Copy-Item $denoExe (Join-Path $denoDir 'deno.exe')
 
           Copy-Item 'extension/dist/*' $chromeExtensionDir -Recurse
           Copy-Item 'cep-extension/*' $cepExtensionDir -Recurse

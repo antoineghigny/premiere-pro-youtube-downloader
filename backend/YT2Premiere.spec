@@ -1,12 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
+yt_dlp_ejs_datas = collect_data_files('yt_dlp_ejs')
+yt_dlp_ejs_hiddenimports = collect_submodules('yt_dlp_ejs')
+
 
 a = Analysis(
     ['server.py'],
     pathex=[],
     binaries=[],
-    datas=[('notification_sound.mp3', '.')],
-    hiddenimports=['engineio.async_drivers.threading'],
+    datas=[('notification_sound.mp3', '.'), *yt_dlp_ejs_datas],
+    hiddenimports=['engineio.async_drivers.threading', *yt_dlp_ejs_hiddenimports],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

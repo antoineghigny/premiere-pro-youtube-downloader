@@ -1,9 +1,16 @@
 import { io, Socket } from 'socket.io-client';
 import { BACKEND_URL } from './config';
-import { DEFAULT_SETTINGS, type DownloadRequest, type ExtensionSettings } from './api/contracts';
+import {
+  DEFAULT_SETTINGS,
+  type DownloadProgressState,
+  type DownloadRequest,
+  type ExtensionSettings,
+} from './api/contracts';
 
 type ActiveDownload = {
   tabId: number;
+  status: DownloadProgressState;
+  cleanupTimeoutId: ReturnType<typeof setTimeout> | null;
 };
 
 type RuntimeMessage =
@@ -11,10 +18,50 @@ type RuntimeMessage =
   | { type: 'SAVE_SETTINGS'; settings: ExtensionSettings }
   | { type: 'CHECK_BACKEND_HEALTH' }
   | { type: 'START_DOWNLOAD'; request: DownloadRequest }
+  | { type: 'GET_DOWNLOAD_STATUS'; requestId: string }
   | { type: 'STOP_TRACKING_DOWNLOAD'; requestId: string };
 
 let socket: Socket | null = null;
 const activeDownloads = new Map<string, ActiveDownload>();
+const DOWNLOAD_STATUS_RETENTION_MS = 60000;
+
+function createInitialDownloadStatus(): DownloadProgressState {
+  return {
+    stage: 'preparing',
+    indeterminate: true,
+    detail: 'Queueing download',
+    updatedAt: Date.now(),
+  };
+}
+
+function clearCleanupTimer(activeDownload: ActiveDownload) {
+  if (activeDownload.cleanupTimeoutId !== null) {
+    clearTimeout(activeDownload.cleanupTimeoutId);
+    activeDownload.cleanupTimeoutId = null;
+  }
+}
+
+function updateDownloadStatus(requestId: string, patch: Partial<DownloadProgressState>) {
+  const activeDownload = activeDownloads.get(requestId);
+  if (!activeDownload) return;
+
+  clearCleanupTimer(activeDownload);
+  activeDownload.status = {
+    ...activeDownload.status,
+    ...patch,
+    updatedAt: Date.now(),
+  };
+}
+
+function scheduleDownloadCleanup(requestId: string) {
+  const activeDownload = activeDownloads.get(requestId);
+  if (!activeDownload) return;
+
+  clearCleanupTimer(activeDownload);
+  activeDownload.cleanupTimeoutId = setTimeout(() => {
+    stopTrackingDownload(requestId);
+  }, DOWNLOAD_STATUS_RETENTION_MS);
+}
 
 function getSocket(): Socket {
   if (!socket) {
@@ -37,34 +84,65 @@ function getSocket(): Socket {
       console.log('[YT2PP] Background disconnected from backend');
     });
 
-    socket.on('download-progress', (data: { requestId?: string; percentage?: string }) => {
+    socket.on('connect_error', (error) => {
+      console.error('[YT2PP] Backend socket connection error:', error);
+    });
+
+    socket.on('download-progress', (data: { requestId?: string; percentage?: string; stage?: string; indeterminate?: boolean; detail?: string }) => {
       const requestId = data.requestId?.trim();
       if (!requestId) return;
+      const stage = (data.stage?.trim() || 'downloading') as DownloadProgressState['stage'];
+      updateDownloadStatus(requestId, {
+        stage,
+        indeterminate: Boolean(data.indeterminate ?? false),
+        percentage: data.percentage?.trim() || undefined,
+        detail: data.detail?.trim() || undefined,
+      });
       void relayToTab(requestId, {
         type: 'DOWNLOAD_PROGRESS',
         requestId,
-        percentage: data.percentage?.trim() ?? '0%',
+        percentage: data.percentage?.trim() ?? '',
+        stage,
+        indeterminate: Boolean(data.indeterminate ?? false),
+        detail: data.detail?.trim() ?? '',
       });
     });
 
-    socket.on('download-complete', (data: { requestId?: string; path?: string }) => {
+    socket.on('download-complete', (data: { requestId?: string; path?: string; stage?: string; percentage?: string; indeterminate?: boolean }) => {
       const requestId = data.requestId?.trim();
       if (!requestId) return;
+      updateDownloadStatus(requestId, {
+        stage: 'complete',
+        indeterminate: false,
+        percentage: '100%',
+        path: data.path ?? '',
+        message: undefined,
+      });
       void relayToTab(requestId, {
         type: 'DOWNLOAD_COMPLETE',
         requestId,
         path: data.path ?? '',
-      }).finally(() => stopTrackingDownload(requestId));
+        stage: 'complete',
+        percentage: '100%',
+        indeterminate: false,
+      }).finally(() => scheduleDownloadCleanup(requestId));
     });
 
-    socket.on('download-failed', (data: { requestId?: string; message?: string }) => {
+    socket.on('download-failed', (data: { requestId?: string; message?: string; stage?: string; indeterminate?: boolean }) => {
       const requestId = data.requestId?.trim();
       if (!requestId) return;
+      updateDownloadStatus(requestId, {
+        stage: 'failed',
+        indeterminate: true,
+        message: data.message ?? 'Unknown error',
+      });
       void relayToTab(requestId, {
         type: 'DOWNLOAD_FAILED',
         requestId,
         message: data.message ?? 'Unknown error',
-      }).finally(() => stopTrackingDownload(requestId));
+        stage: 'failed',
+        indeterminate: true,
+      }).finally(() => scheduleDownloadCleanup(requestId));
     });
   }
 
@@ -137,10 +215,11 @@ function unsubscribeFromDownload(requestId: string) {
   }
 }
 
-function sendMessageToTab(tabId: number, message: object): Promise<boolean> {
+function sendMessageToTab(tabId: number, message: object): Promise<{ delivered: boolean; error?: string }> {
   return new Promise((resolve) => {
     chrome.tabs.sendMessage(tabId, message, () => {
-      resolve(!chrome.runtime.lastError);
+      const runtimeError = chrome.runtime.lastError;
+      resolve(runtimeError ? { delivered: false, error: runtimeError.message } : { delivered: true });
     });
   });
 }
@@ -149,13 +228,22 @@ async function relayToTab(requestId: string, message: object): Promise<void> {
   const activeDownload = activeDownloads.get(requestId);
   if (!activeDownload) return;
 
-  const delivered = await sendMessageToTab(activeDownload.tabId, message);
-  if (!delivered) {
-    stopTrackingDownload(requestId);
+  const result = await sendMessageToTab(activeDownload.tabId, message);
+  if (!result.delivered) {
+    const messageType = typeof (message as { type?: unknown }).type === 'string'
+      ? String((message as { type?: unknown }).type)
+      : 'UNKNOWN_MESSAGE';
+    console.warn(
+      `[YT2PP] Could not relay ${messageType} for ${requestId} to tab ${activeDownload.tabId}: ${result.error ?? 'Unknown error'}`
+    );
   }
 }
 
 function stopTrackingDownload(requestId: string) {
+  const activeDownload = activeDownloads.get(requestId);
+  if (activeDownload) {
+    clearCleanupTimer(activeDownload);
+  }
   activeDownloads.delete(requestId);
   unsubscribeFromDownload(requestId);
 }
@@ -213,7 +301,11 @@ async function startDownload(sender: chrome.runtime.MessageSender, request: Down
   }
 
   const requestId = String(request.requestId || crypto.randomUUID());
-  activeDownloads.set(requestId, { tabId });
+  activeDownloads.set(requestId, {
+    tabId,
+    status: createInitialDownloadStatus(),
+    cleanupTimeoutId: null,
+  });
 
   const subscribed = await subscribeToDownload(requestId);
   if (!subscribed) {
@@ -273,6 +365,16 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
       case 'START_DOWNLOAD':
         sendResponse(await startDownload(sender, message.request));
         return;
+
+      case 'GET_DOWNLOAD_STATUS': {
+        const activeDownload = activeDownloads.get(message.requestId);
+        sendResponse({
+          success: true,
+          found: Boolean(activeDownload),
+          status: activeDownload?.status,
+        });
+        return;
+      }
 
       case 'STOP_TRACKING_DOWNLOAD':
         stopTrackingDownload(message.requestId);

@@ -47,6 +47,10 @@ Section 'Install'
     SetOutPath '$INSTDIR\exec\aria2c'
     File /nonfatal '..\dist\staging\exec\aria2c\aria2c.exe'
 
+    ; Deno runtime for yt-dlp EJS
+    SetOutPath '$INSTDIR\exec\deno'
+    File /nonfatal '..\dist\staging\exec\deno\deno.exe'
+
     ; CEP Extension
     SetOutPath '$PROGRAMFILES64\Common Files\Adobe\CEP\extensions\com.yt2premiere.cep'
     File /r '..\dist\staging\cep-extension\*.*'
