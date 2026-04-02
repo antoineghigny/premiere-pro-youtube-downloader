@@ -81,8 +81,9 @@
 }
 
 .checkbox-option.is-selected {
-  @apply border-main bg-main/8;
-  box-shadow: inset 0 0 0 1px rgba(97, 22, 255, 0.28), 0 16px 32px rgba(97, 22, 255, 0.12);
+  @apply border-main;
+  background-color: rgba(97, 22, 255, 0.15);
+  box-shadow: inset 0 0 0 2px rgba(97, 22, 255, 0.5), 0 8px 20px rgba(97, 22, 255, 0.15);
 }
 
 .checkbox-option.is-selected .checkbox-option__title {
@@ -90,5 +91,5 @@
 }
 
 .checkbox-option.is-selected .checkbox-option__meta {
-  color: rgba(97, 22, 255, 0.85);
+  color: rgba(97, 22, 255, 0.9);
 }
