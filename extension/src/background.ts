@@ -24,6 +24,7 @@ type RuntimeMessage =
 let socket: Socket | null = null;
 const activeDownloads = new Map<string, ActiveDownload>();
 const DOWNLOAD_STATUS_RETENTION_MS = 60000;
+const LEGACY_SETTING_KEYS = ['secondsBefore', 'secondsAfter'];
 
 function createInitialDownloadStatus(): DownloadProgressState {
   return {
@@ -261,7 +262,9 @@ function getStoredSettings(): Promise<ExtensionSettings> {
 
 function saveStoredSettings(settings: ExtensionSettings): Promise<void> {
   return new Promise((resolve) => {
-    chrome.storage.sync.set(settings as unknown as Record<string, unknown>, () => resolve());
+    chrome.storage.sync.remove(LEGACY_SETTING_KEYS, () => {
+      chrome.storage.sync.set(settings as unknown as Record<string, unknown>, () => resolve());
+    });
   });
 }
 

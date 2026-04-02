@@ -4,8 +4,6 @@ export interface ExtensionSettings {
   audioOnly: boolean;
   downloadMP3: boolean;
   videoOnly: boolean;
-  secondsBefore: string;
-  secondsAfter: string;
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -14,8 +12,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   audioOnly: false,
   downloadMP3: false,
   videoOnly: false,
-  secondsBefore: '15',
-  secondsAfter: '15',
 };
 
 export interface DownloadRequest {
@@ -26,10 +22,7 @@ export interface DownloadRequest {
   downloadMP3?: boolean;
   clipIn?: number;
   clipOut?: number;
-  currentTime?: number;
   downloadPath?: string;
-  secondsBefore?: number;
-  secondsAfter?: number;
   videoOnly?: boolean;
   resolution?: string;
 }

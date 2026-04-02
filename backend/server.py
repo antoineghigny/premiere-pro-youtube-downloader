@@ -168,6 +168,21 @@ def handle_video_url():
     video_only = settings['videoOnly']
     user_path = settings['downloadPath']
     download_path = user_path if user_path else get_default_download_path()
+    clip_start = None
+    clip_end = None
+
+    if download_type == 'clip':
+        raw_clip_start = data.get('clipIn')
+        raw_clip_end = data.get('clipOut')
+        if raw_clip_start is None or raw_clip_end is None:
+            return jsonify(error='clipIn and clipOut are required'), 400
+        try:
+            clip_start = float(raw_clip_start)
+            clip_end = float(raw_clip_end)
+        except (TypeError, ValueError):
+            return jsonify(error='clipIn and clipOut must be numbers'), 400
+        if clip_end <= clip_start:
+            return jsonify(error='clipOut must be greater than clipIn'), 400
 
     os.makedirs(download_path, exist_ok=True)
 
@@ -190,17 +205,6 @@ def handle_video_url():
             elif download_type == 'audio':
                 file_path = download_audio(video_url, download_path, request_id=request_id)
             elif download_type == 'clip':
-                clip_start = data.get('clipIn')
-                clip_end = data.get('clipOut')
-                if clip_start is not None and clip_end is not None:
-                    clip_start = float(clip_start)
-                    clip_end = float(clip_end)
-                else:
-                    current_time = float(data.get('currentTime', 0))
-                    seconds_before = int(settings['secondsBefore'])
-                    seconds_after = int(settings['secondsAfter'])
-                    clip_start = max(0, current_time - seconds_before)
-                    clip_end = current_time + seconds_after
                 file_path = download_clip(
                     video_url,
                     resolution,

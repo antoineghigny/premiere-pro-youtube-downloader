@@ -49,8 +49,6 @@ async function loadSettings() {
   (document.getElementById('downloadPath') as HTMLInputElement).value = items.downloadPath;
   getAudioOnlyCheckbox().checked = audioOnly;
   getVideoOnlyCheckbox().checked = Boolean(items.videoOnly) && !audioOnly;
-  (document.getElementById('secondsBefore') as HTMLInputElement).value = items.secondsBefore;
-  (document.getElementById('secondsAfter') as HTMLInputElement).value = items.secondsAfter;
   syncToggleOptionStyles();
 }
 
@@ -62,8 +60,6 @@ async function saveSettings() {
     audioOnly,
     downloadMP3: audioOnly,
     videoOnly: getVideoOnlyCheckbox().checked && !audioOnly,
-    secondsBefore: (document.getElementById('secondsBefore') as HTMLInputElement).value,
-    secondsAfter: (document.getElementById('secondsAfter') as HTMLInputElement).value,
   };
 
   await sendRuntimeMessage<{ success?: boolean }>({ type: 'SAVE_SETTINGS', settings });
@@ -95,8 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
     (document.getElementById('downloadPath') as HTMLInputElement).value = DEFAULT_SETTINGS.downloadPath;
     getAudioOnlyCheckbox().checked = audioOnly;
     getVideoOnlyCheckbox().checked = DEFAULT_SETTINGS.videoOnly && !audioOnly;
-    (document.getElementById('secondsBefore') as HTMLInputElement).value = DEFAULT_SETTINGS.secondsBefore;
-    (document.getElementById('secondsAfter') as HTMLInputElement).value = DEFAULT_SETTINGS.secondsAfter;
     syncToggleOptionStyles();
   });
   document.getElementById('save-btn')!.addEventListener('click', () => {

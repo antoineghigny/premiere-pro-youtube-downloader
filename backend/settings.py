@@ -31,8 +31,6 @@ DEFAULT_SETTINGS = {
     'downloadPath': '',
     'audioOnly': False,
     'videoOnly': False,
-    'secondsBefore': '15',
-    'secondsAfter': '15',
 }
 
 os.makedirs(SETTINGS_DIR, exist_ok=True)
@@ -50,13 +48,6 @@ def _coerce_bool(value, default=False):
     if isinstance(value, (int, float)):
         return bool(value)
     return default
-
-
-def _coerce_non_negative_int(value, default):
-    try:
-        return max(0, int(value))
-    except (TypeError, ValueError):
-        return default
 
 
 def normalize_settings(raw_settings, base_settings=None):
@@ -83,16 +74,11 @@ def normalize_settings(raw_settings, base_settings=None):
     if audio_only:
         video_only = False
 
-    seconds_before = _coerce_non_negative_int(raw_settings.get('secondsBefore', settings['secondsBefore']), 15)
-    seconds_after = _coerce_non_negative_int(raw_settings.get('secondsAfter', settings['secondsAfter']), 15)
-
     return {
         'resolution': resolution,
         'downloadPath': download_path.strip(),
         'audioOnly': audio_only,
         'videoOnly': video_only,
-        'secondsBefore': str(seconds_before),
-        'secondsAfter': str(seconds_after),
     }
 
 
