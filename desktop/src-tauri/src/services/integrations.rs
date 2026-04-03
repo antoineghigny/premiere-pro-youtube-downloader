@@ -17,6 +17,13 @@ const CEP_MARKER_FILE: &str = "CSXS/manifest.xml";
 const BROWSER_MARKER_FILE: &str = "manifest.json";
 const LEGACY_CEP_IDS: &[&str] = &["com.youtubetopremiere", "com.selgy.youtubetopremiere"];
 
+fn should_enable_cep_debug_mode() -> bool {
+    cfg!(debug_assertions)
+        || std::env::var("YT2PP_ENABLE_CEP_DEBUG")
+            .map(|value| value == "1")
+            .unwrap_or(false)
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IntegrationConflict {
@@ -82,7 +89,9 @@ pub fn install_premiere_panel(state: &AppState) -> Result<IntegrationActionResul
     }
 
     write_install_path_registry()?;
-    enable_cep_debug_mode()?;
+    if should_enable_cep_debug_mode() {
+        enable_cep_debug_mode()?;
+    }
 
     let target_dir = cep_target_dir()?;
     let was_installed = target_dir.exists();

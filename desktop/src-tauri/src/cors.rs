@@ -1,5 +1,6 @@
 use axum::{
     body::Body,
+    extract::State,
     http::{
         header::{
             ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
@@ -12,10 +13,9 @@ use axum::{
 };
 use serde_json::json;
 
-const DEFAULT_EXTENSION_IDS: &str =
-    "noloogahcbofnjjkpbeandcgoldejcic,aidffebbdmdjibggcfkeihnljgambjjd";
-const TRUSTED_WEB_ORIGINS: &[&str] = &["https://www.youtube.com"];
-const TRUSTED_WEB_ORIGIN_PATHS: &[&str] = &["/handle-video-url"];
+use crate::server::AppState;
+
+const DEFAULT_EXTENSION_IDS: &str = "noloogahcbofnjjkpbeandcgoldejcic,aidffebbdmdjibggcfkeihnljgambjjd";
 const TRUSTED_TAURI_ORIGINS: &[&str] = &[
     "tauri://localhost",
     "http://tauri.localhost",
@@ -23,6 +23,8 @@ const TRUSTED_TAURI_ORIGINS: &[&str] = &[
     "http://localhost:1420",
     "http://127.0.0.1:1420",
 ];
+const DESKTOP_AUTH_HEADER: &str = "x-yt2pp-desktop-token";
+const CEP_AUTH_HEADER: &str = "x-yt2pp-cep-token";
 
 fn trusted_extension_origins() -> Vec<String> {
     std::env::var("YT2PP_EXTENSION_IDS")
@@ -62,11 +64,10 @@ pub fn is_allowed_socket_origin(origin: &str) -> bool {
     trusted_extension_origins()
         .iter()
         .any(|candidate| candidate == normalized)
-        || TRUSTED_WEB_ORIGINS.contains(&normalized)
         || TRUSTED_TAURI_ORIGINS.contains(&normalized)
 }
 
-fn is_allowed_request_origin(origin: &str, path: &str) -> bool {
+fn is_allowed_request_origin(origin: &str) -> bool {
     let normalized = origin.trim();
     if trusted_extension_origins()
         .iter()
@@ -79,24 +80,29 @@ fn is_allowed_request_origin(origin: &str, path: &str) -> bool {
         return true;
     }
 
-    TRUSTED_WEB_ORIGIN_PATHS.contains(&path) && TRUSTED_WEB_ORIGINS.contains(&normalized)
+    false
+}
+
+fn has_valid_token(request: &Request<Body>, header_name: &str, expected: &str) -> bool {
+    request
+        .headers()
+        .get(header_name)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value == expected)
+        .unwrap_or(false)
 }
 
 fn apply_cors_headers(
     response: &mut Response,
     origin: Option<HeaderValue>,
-    desktop_request: bool,
-    cep_request: bool,
+    _desktop_request: bool,
+    _cep_request: bool,
     request_headers: HeaderValue,
 ) {
     if let Some(origin) = origin {
         response
             .headers_mut()
             .insert(ACCESS_CONTROL_ALLOW_ORIGIN, origin);
-    } else if desktop_request || cep_request {
-        response
-            .headers_mut()
-            .insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
     }
 
     response.headers_mut().insert(
@@ -134,9 +140,17 @@ fn error_response(
     response
 }
 
-pub async fn enforce_request_origin(request: Request<Body>, next: Next) -> Response {
+pub async fn enforce_request_origin(
+    State(state): State<AppState>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
     let desktop_request = is_desktop_request(&request);
     let cep_request = is_cep_request(&request);
+    let desktop_authenticated =
+        desktop_request && has_valid_token(&request, DESKTOP_AUTH_HEADER, state.auth.desktop_token());
+    let cep_authenticated =
+        cep_request && has_valid_token(&request, CEP_AUTH_HEADER, state.auth.cep_token());
     let origin_header = request.headers().get(ORIGIN).cloned();
     let request_headers = request
         .headers()
@@ -149,21 +163,51 @@ pub async fn enforce_request_origin(request: Request<Body>, next: Next) -> Respo
         .and_then(|value| value.to_str().ok())
         .map(str::trim)
         .filter(|value| !value.is_empty());
-    let path = request.uri().path().to_string();
 
     if request.method() == Method::OPTIONS {
+        if desktop_request && !desktop_authenticated {
+            return error_response(
+                StatusCode::FORBIDDEN,
+                "Desktop authentication failed",
+                origin_header,
+                desktop_request,
+                cep_request,
+                request_headers,
+            );
+        }
+
+        if cep_request && !cep_authenticated {
+            return error_response(
+                StatusCode::FORBIDDEN,
+                "Premiere panel authentication failed",
+                origin_header,
+                desktop_request,
+                cep_request,
+                request_headers,
+            );
+        }
+
         if !desktop_request && !cep_request {
-            if let Some(origin) = origin {
-                if !is_allowed_request_origin(origin, &path) {
-                    return error_response(
-                        StatusCode::FORBIDDEN,
-                        "Origin not allowed",
-                        origin_header,
-                        desktop_request,
-                        cep_request,
-                        request_headers,
-                    );
-                }
+            let Some(origin) = origin else {
+                return error_response(
+                    StatusCode::FORBIDDEN,
+                    "Origin required",
+                    origin_header,
+                    desktop_request,
+                    cep_request,
+                    request_headers,
+                );
+            };
+
+            if !is_allowed_request_origin(origin) {
+                return error_response(
+                    StatusCode::FORBIDDEN,
+                    "Origin not allowed",
+                    origin_header,
+                    desktop_request,
+                    cep_request,
+                    request_headers,
+                );
             }
         }
 
@@ -178,14 +222,10 @@ pub async fn enforce_request_origin(request: Request<Body>, next: Next) -> Respo
         return response;
     }
 
-    if matches!(request.method(), &Method::POST | &Method::DELETE)
-        && origin.is_none()
-        && !desktop_request
-        && !cep_request
-    {
+    if desktop_request && !desktop_authenticated {
         return error_response(
             StatusCode::FORBIDDEN,
-            "Origin required",
+            "Desktop authentication failed",
             origin_header,
             desktop_request,
             cep_request,
@@ -193,8 +233,30 @@ pub async fn enforce_request_origin(request: Request<Body>, next: Next) -> Respo
         );
     }
 
-    if let Some(origin) = origin {
-        if !is_allowed_request_origin(origin, &path) && !desktop_request && !cep_request {
+    if cep_request && !cep_authenticated {
+        return error_response(
+            StatusCode::FORBIDDEN,
+            "Premiere panel authentication failed",
+            origin_header,
+            desktop_request,
+            cep_request,
+            request_headers,
+        );
+    }
+
+    if !desktop_request && !cep_request {
+        let Some(origin) = origin else {
+            return error_response(
+                StatusCode::FORBIDDEN,
+                "Origin required",
+                origin_header,
+                desktop_request,
+                cep_request,
+                request_headers,
+            );
+        };
+
+        if !is_allowed_request_origin(origin) {
             return error_response(
                 StatusCode::FORBIDDEN,
                 "Origin not allowed",
@@ -215,4 +277,35 @@ pub async fn enforce_request_origin(request: Request<Body>, next: Next) -> Respo
         request_headers,
     );
     response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::Request;
+
+    #[test]
+    fn request_origins_exclude_youtube_pages() {
+        assert!(!is_allowed_request_origin("https://www.youtube.com"));
+        assert!(!is_allowed_socket_origin("https://www.youtube.com"));
+    }
+
+    #[test]
+    fn desktop_token_must_match_expected_value() {
+        let request = Request::builder()
+            .header(DESKTOP_AUTH_HEADER, "expected-token")
+            .body(Body::empty())
+            .expect("request");
+
+        assert!(has_valid_token(
+            &request,
+            DESKTOP_AUTH_HEADER,
+            "expected-token"
+        ));
+        assert!(!has_valid_token(
+            &request,
+            DESKTOP_AUTH_HEADER,
+            "different-token"
+        ));
+    }
 }

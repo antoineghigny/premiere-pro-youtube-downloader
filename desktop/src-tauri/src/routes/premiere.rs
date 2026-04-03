@@ -18,6 +18,10 @@ pub struct RegisterCepRequest {
     pub port: u16,
 }
 
+fn is_allowed_cep_port(port: u16) -> bool {
+    matches!(port, 3000 | 3021 | 3022 | 3023 | 3024 | 3025)
+}
+
 pub async fn premiere_status(State(state): State<AppState>) -> Json<serde_json::Value> {
     let status = premiere::premiere_status(&state).await;
     Json(json!(status))
@@ -31,6 +35,12 @@ pub async fn register_cep(
         return Err((
             axum::http::StatusCode::BAD_REQUEST,
             Json(json!({ "error": "CEP port is required" })),
+        ));
+    }
+    if !is_allowed_cep_port(payload.port) {
+        return Err((
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "CEP port is not allowed" })),
         ));
     }
 

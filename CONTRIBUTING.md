@@ -63,6 +63,12 @@ cd desktop
 npm run tauri:dev
 ```
 
+Equivalent from the repository root:
+
+```bash
+npm run dev:desktop
+```
+
 Build the unpacked extension once:
 
 ```bash

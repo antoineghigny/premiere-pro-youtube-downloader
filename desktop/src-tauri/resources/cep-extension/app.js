@@ -10,14 +10,21 @@ var path = require('path');
 var execPath = path.join(__dirname, 'exec');
 var activePortFile = path.join(process.env.APPDATA || '', 'YT2Premiere', 'active_port.json');
 
-function readActiveBackendPort() {
+function readActiveBackendDescriptor() {
     try {
         if (!fs.existsSync(activePortFile)) {
             return null;
         }
         var data = JSON.parse(fs.readFileSync(activePortFile, 'utf8'));
         var port = Number(data && data.port);
-        return Number.isInteger(port) ? port : null;
+        if (!Number.isInteger(port)) {
+            return null;
+        }
+
+        return {
+            port: port,
+            cepToken: typeof data.cepToken === 'string' ? data.cepToken.trim() : ''
+        };
     } catch (error) {
         console.error('Could not read active_port.json:', error);
         return null;
@@ -25,17 +32,21 @@ function readActiveBackendPort() {
 }
 
 function isBackendAlive(callback) {
-    var port = readActiveBackendPort();
-    if (!port) {
+    var backend = readActiveBackendDescriptor();
+    if (!backend) {
         callback(false);
         return;
     }
 
     var req = http.get({
         hostname: '127.0.0.1',
-        port: port,
+        port: backend.port,
         path: '/',
-        timeout: 800
+        timeout: 800,
+        headers: {
+            'X-YT2PP-CEP': '1',
+            'X-YT2PP-CEP-Token': backend.cepToken
+        }
     }, function(res) {
         var body = '';
         res.on('data', function(chunk) {

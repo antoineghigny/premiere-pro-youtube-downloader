@@ -87,6 +87,13 @@ fn main() {
     let is_windows = target.contains("windows");
     let exe_suffix = if is_windows { ".exe" } else { "" };
     let repo_root = manifest_dir.join("..").join("..");
+    let cep_source_dir = repo_root.join("cep-extension");
+    let extension_dist_dir = repo_root.join("extension").join("dist");
+    let tools_dir = repo_root.join("tools");
+
+    println!("cargo:rerun-if-changed={}", cep_source_dir.display());
+    println!("cargo:rerun-if-changed={}", extension_dist_dir.display());
+    println!("cargo:rerun-if-changed={}", tools_dir.display());
 
     let ytdlp_source = repo_root
         .join("tools")
@@ -112,14 +119,8 @@ fn main() {
 
     let resources_dir = manifest_dir.join("resources");
     let _ = fs::create_dir_all(&resources_dir);
-    copy_dir_recursive(
-        &repo_root.join("cep-extension"),
-        &resources_dir.join("cep-extension"),
-    );
-    copy_dir_recursive(
-        &repo_root.join("extension").join("dist"),
-        &resources_dir.join("chrome-extension"),
-    );
+    copy_dir_recursive(&cep_source_dir, &resources_dir.join("cep-extension"));
+    copy_dir_recursive(&extension_dist_dir, &resources_dir.join("chrome-extension"));
 
     tauri_build::build();
 }

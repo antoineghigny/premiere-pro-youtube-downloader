@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="12.0" ExtensionBundleId="com.yt2premiere.cep" ExtensionBundleVersion="3.0.0" ExtensionBundleName="YT2Premiere" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="12.0" ExtensionBundleId="com.yt2premiere.cep" ExtensionBundleVersion="3.0.2" ExtensionBundleName="YT2Premiere" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<ExtensionList>
-		<Extension Id="com.yt2premiere.cep" Version="3.0.0" />
+		<Extension Id="com.yt2premiere.cep" Version="3.0.2" />
 	</ExtensionList>
 	<ExecutionEnvironment>
 		<HostList>
@@ -32,13 +32,17 @@
 					<AutoVisible>false</AutoVisible>
 				</Lifecycle>
 				<UI>
-					<Type>Custom</Type>
+					<Type>Panel</Type>
 					<Menu>YT2Premiere</Menu>
 					<Geometry>
 						<Size>
-							<Height>300</Height>
-							<Width>180</Width>
+							<Height>520</Height>
+							<Width>360</Width>
 						</Size>
+						<MinSize>
+							<Height>420</Height>
+							<Width>260</Width>
+						</MinSize>
 					</Geometry>
 				</UI>
 			</DispatchInfo>

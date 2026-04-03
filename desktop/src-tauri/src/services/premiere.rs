@@ -127,6 +127,7 @@ async fn eval_in_premiere(state: &AppState, script: &str) -> Result<String, Stri
     let client = reqwest::Client::new();
     let response = client
         .post(format!("http://127.0.0.1:{cep_port}/"))
+        .header("X-YT2PP-CEP-Token", state.auth.cep_token())
         .json(&json!({ "to_eval": script }))
         .send()
         .await

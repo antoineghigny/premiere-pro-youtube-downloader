@@ -86,9 +86,33 @@ struct ActivePortDescriptor {
     api_version: u8,
     transport: &'static str,
     instance_kind: &'static str,
+    cep_token: String,
     port: u16,
     pid: u32,
     version: &'static str,
+}
+
+#[derive(Debug, Clone)]
+pub struct AuthState {
+    desktop_token: String,
+    cep_token: String,
+}
+
+impl AuthState {
+    fn new() -> Self {
+        Self {
+            desktop_token: uuid::Uuid::new_v4().to_string(),
+            cep_token: uuid::Uuid::new_v4().to_string(),
+        }
+    }
+
+    pub fn desktop_token(&self) -> &str {
+        &self.desktop_token
+    }
+
+    pub fn cep_token(&self) -> &str {
+        &self.cep_token
+    }
 }
 
 #[derive(Clone)]
@@ -101,6 +125,7 @@ pub struct AppState {
     pub downloads: Arc<DashMap<String, ActiveDownloadState>>,
     pub child_processes: Arc<DashMap<String, Arc<Mutex<Child>>>>,
     pub cep: Arc<CepRegistration>,
+    pub auth: Arc<AuthState>,
     pub server_port: Arc<AtomicU16>,
     pub quit_requested: Arc<AtomicBool>,
 }
@@ -123,6 +148,7 @@ impl AppState {
             downloads: Arc::new(DashMap::new()),
             child_processes: Arc::new(DashMap::new()),
             cep: Arc::new(CepRegistration::new()),
+            auth: Arc::new(AuthState::new()),
             server_port: Arc::new(AtomicU16::new(0)),
             quit_requested: Arc::new(AtomicBool::new(false)),
         })
@@ -270,6 +296,7 @@ impl AppState {
             downloads: Arc::new(DashMap::new()),
             child_processes: Arc::new(DashMap::new()),
             cep: Arc::new(CepRegistration::new()),
+            auth: Arc::new(AuthState::new()),
             server_port: Arc::new(AtomicU16::new(3001)),
             quit_requested: Arc::new(AtomicBool::new(false)),
         })
@@ -286,6 +313,7 @@ async fn bind_server(state: &AppState) -> Result<TcpListener, String> {
                     api_version: BACKEND_API_VERSION,
                     transport: BACKEND_TRANSPORT,
                     instance_kind: backend_instance_kind(),
+                    cep_token: state.auth.cep_token().to_string(),
                     port,
                     pid: std::process::id(),
                     version: env!("CARGO_PKG_VERSION"),
@@ -374,7 +402,10 @@ pub async fn serve(state: AppState) -> Result<(), String> {
             axum::routing::delete(routes::history::delete_history).options(routes::options_ok),
         )
         .route("/ws", get(websocket::ws_handler))
-        .layer(middleware::from_fn(cors::enforce_request_origin))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            cors::enforce_request_origin,
+        ))
         .with_state(state.clone());
 
     tracing::info!("YT2Premiere Rust backend listening on http://127.0.0.1:{port}");

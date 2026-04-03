@@ -30,6 +30,11 @@ fn get_server_port(state: tauri::State<'_, server::AppState>) -> u16 {
     state.server_port()
 }
 
+#[tauri::command]
+fn get_desktop_auth_token(state: tauri::State<'_, server::AppState>) -> String {
+    state.auth.desktop_token().to_string()
+}
+
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -108,7 +113,10 @@ fn main() {
                 show_main_window(app);
             }
         }))
-        .invoke_handler(tauri::generate_handler![get_server_port])
+        .invoke_handler(tauri::generate_handler![
+            get_server_port,
+            get_desktop_auth_token
+        ])
         .setup(move |app| {
             let state = server::AppState::bootstrap(app.path().resource_dir().ok())?;
             app.manage(state.clone());

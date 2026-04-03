@@ -22,6 +22,8 @@ import {
 
 let cachedBackendPort: number | null = null;
 let pendingBackendPort: Promise<number> | null = null;
+let cachedDesktopAuthToken: string | null = null;
+let pendingDesktopAuthToken: Promise<string> | null = null;
 
 export class ApiError extends Error {
   duplicate = false;
@@ -54,11 +56,34 @@ export function invalidateBackendPortCache() {
   cachedBackendPort = null;
 }
 
+async function getDesktopAuthToken(): Promise<string> {
+  if (cachedDesktopAuthToken !== null) {
+    return cachedDesktopAuthToken;
+  }
+
+  if (pendingDesktopAuthToken) {
+    return pendingDesktopAuthToken;
+  }
+
+  pendingDesktopAuthToken = invoke<string>('get_desktop_auth_token')
+    .then((token) => {
+      cachedDesktopAuthToken = token;
+      return token;
+    })
+    .finally(() => {
+      pendingDesktopAuthToken = null;
+    });
+
+  return pendingDesktopAuthToken;
+}
+
 async function pingBackendPort(port: number): Promise<BackendCandidate> {
+  const desktopAuthToken = await getDesktopAuthToken();
   const response = await fetch(`http://127.0.0.1:${port}/`, {
     method: 'GET',
     headers: {
       'X-YT2PP-Desktop': '1',
+      'X-YT2PP-Desktop-Token': desktopAuthToken,
     },
     signal: AbortSignal.timeout(800),
   });
@@ -111,11 +136,13 @@ export async function discoverBackendPort(forceRefresh = false): Promise<number>
 
 async function apiRequest<T>(path: string, init?: RequestInit, allowRetry = true): Promise<T> {
   const port = await discoverBackendPort();
+  const desktopAuthToken = await getDesktopAuthToken();
   const response = await fetch(`http://127.0.0.1:${port}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
       'X-YT2PP-Desktop': '1',
+      'X-YT2PP-Desktop-Token': desktopAuthToken,
       ...(init?.headers ?? {}),
     },
   }).catch(async (error) => {
@@ -129,6 +156,7 @@ async function apiRequest<T>(path: string, init?: RequestInit, allowRetry = true
       headers: {
         'Content-Type': 'application/json',
         'X-YT2PP-Desktop': '1',
+        'X-YT2PP-Desktop-Token': desktopAuthToken,
         ...(init?.headers ?? {}),
       },
     });

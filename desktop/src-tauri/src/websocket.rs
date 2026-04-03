@@ -118,10 +118,12 @@ pub async fn ws_handler(
         .map(str::trim)
         .filter(|value| !value.is_empty());
 
-    if let Some(origin) = origin {
-        if !is_allowed_socket_origin(origin) {
-            return axum::http::StatusCode::FORBIDDEN.into_response();
-        }
+    let Some(origin) = origin else {
+        return axum::http::StatusCode::FORBIDDEN.into_response();
+    };
+
+    if !is_allowed_socket_origin(origin) {
+        return axum::http::StatusCode::FORBIDDEN.into_response();
     }
 
     ws.on_upgrade(move |socket| handle_socket(socket, state.websocket_hub.clone()))
