@@ -2,6 +2,7 @@
   "name": "yt2premiere-desktop",
   "private": true,
   "version": "3.0.0",
+  "license": "MPL-2.0",
   "description": "Open-source desktop video downloader with Chrome and optional Premiere Pro integration",
   "type": "module",
   "scripts": {

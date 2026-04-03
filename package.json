@@ -1,6 +1,7 @@
 {
   "name": "yt2premiere-workspace",
   "private": true,
+  "license": "MPL-2.0",
   "scripts": {
     "build": "npm --prefix extension run build",
     "dev": "npm --prefix extension run dev",

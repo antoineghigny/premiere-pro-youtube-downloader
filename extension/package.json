@@ -3,6 +3,7 @@
   "version": "3.0.0",
   "description": "Chrome add-on for sending video, audio, and clip downloads to YT2Premiere desktop",
   "private": true,
+  "license": "MPL-2.0",
   "scripts": {
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch",

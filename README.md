@@ -114,3 +114,15 @@ npm test
 
 - [Architecture](./ARCHITECTURE.md)
 - [Contributing](./CONTRIBUTING.md)
+
+## License
+
+This project is licensed under the Mozilla Public License 2.0.
+
+Why this choice:
+
+- it keeps this codebase open source
+- it lets you build larger commercial products around it later
+- it avoids the fully permissive "anyone can close and resell the whole thing unchanged" downside of MIT
+
+Third-party files and dependencies keep their own licenses where applicable.
