@@ -1,27 +1,11 @@
 import clsx from 'clsx';
 
 import type { DownloadItem } from '../../api/types';
+import { getDownloadStageLabel } from './downloadLabels';
 
 type ProgressBarProps = {
   item: DownloadItem;
 };
-
-function stageLabel(item: DownloadItem): string {
-  switch (item.stage) {
-    case 'downloading':
-      return 'Downloading';
-    case 'clipping':
-      return 'Processing';
-    case 'importing':
-      return 'Importing';
-    case 'complete':
-      return 'Complete';
-    case 'failed':
-      return 'Failed';
-    default:
-      return 'Preparing';
-  }
-}
 
 function stageToneClassName(item: DownloadItem): string {
   switch (item.stage) {
@@ -61,7 +45,7 @@ export function ProgressBar({ item }: ProgressBarProps) {
         <div className="yt2pp-progress-runner absolute inset-y-[1px] left-0 w-[14%] rounded-full bg-white/36" />
       ) : null}
       <div className="pointer-events-none absolute inset-0 flex items-center px-2 text-[9px] font-medium uppercase tracking-[0.16em] text-white/65">
-        <span className="truncate">{stageLabel(item)}</span>
+        <span className="truncate">{getDownloadStageLabel(item)}</span>
       </div>
     </div>
   );

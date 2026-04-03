@@ -3,6 +3,7 @@ import { FolderOpen, LoaderCircle, RefreshCcw, Trash2 } from 'lucide-react';
 import type { DownloadItem } from '../../api/types';
 import { formatRepresentativeSpeed } from '../../utils/format';
 import { Button } from '../common/Button';
+import { getDownloadAvailabilityLabel } from './downloadLabels';
 import { ProgressBar } from './ProgressBar';
 
 type DownloadCardProps = {
@@ -15,13 +16,7 @@ type DownloadCardProps = {
 export function DownloadCard({ item, onRetry, onRemove, onReveal }: DownloadCardProps) {
   const isComplete = item.status === 'complete';
   const isRunning = item.status === 'running' || item.status === 'starting';
-  const runningLabel = item.stage === 'clipping'
-    ? 'Processing'
-    : item.stage === 'importing'
-      ? 'Importing'
-      : item.stage === 'downloading'
-        ? 'Downloading'
-        : 'Starting';
+  const runningLabel = getDownloadAvailabilityLabel(item);
 
   return (
     <div className="group panel-surface overflow-hidden p-0">
@@ -47,7 +42,7 @@ export function DownloadCard({ item, onRetry, onRemove, onReveal }: DownloadCard
         <ProgressBar item={item} />
         <div className="flex items-center justify-between text-sm text-[var(--text-muted)]">
           <span>{item.percentageLabel || `${Math.round(item.progress)}%`}</span>
-          <span>{formatRepresentativeSpeed(item.speedPoints, item.speed) || item.stage}</span>
+          <span>{formatRepresentativeSpeed(item.speedPoints, item.speed) || runningLabel}</span>
         </div>
         <div className="flex items-center gap-2">
           <Button

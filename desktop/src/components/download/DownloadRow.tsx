@@ -5,6 +5,7 @@ import type { DownloadItem } from '../../api/types';
 import { formatBytes, formatElapsed, formatRepresentativeSpeed } from '../../utils/format';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
+import { getDownloadAvailabilityLabel } from './downloadLabels';
 import { ProgressBar } from './ProgressBar';
 import { SpeedGraph } from './SpeedGraph';
 
@@ -19,17 +20,7 @@ type DownloadRowProps = {
 export function DownloadRow({ item, onRetry, onRemove, onReveal, onMove }: DownloadRowProps) {
   const isComplete = item.status === 'complete';
   const isRunning = item.status === 'running' || item.status === 'starting';
-  const availabilityLabel = isComplete
-    ? 'Ready to open'
-    : item.status === 'failed'
-      ? 'Download failed'
-      : item.stage === 'clipping'
-        ? 'Post-processing'
-        : item.stage === 'importing'
-          ? 'Importing to Premiere'
-          : item.stage === 'downloading'
-            ? 'Downloading'
-            : 'Starting';
+  const availabilityLabel = getDownloadAvailabilityLabel(item);
 
   return (
     <div
