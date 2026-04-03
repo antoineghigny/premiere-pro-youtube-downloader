@@ -72,17 +72,6 @@ function isBackendAlive(callback) {
     });
 }
 
-function uniqueNonEmpty(items) {
-    var seen = {};
-    return items.filter(function(item) {
-        if (!item || seen[item]) {
-            return false;
-        }
-        seen[item] = true;
-        return true;
-    });
-}
-
 function readInstallPathFromRegistry() {
     if (os.platform() !== 'win32') {
         return null;
@@ -119,39 +108,42 @@ function readInstallPathFromRegistry() {
     return null;
 }
 
+function uniqueExistingPaths(items) {
+    var seen = {};
+    return items.filter(function(item) {
+        if (!item || seen[item] || !fs.existsSync(item)) {
+            return false;
+        }
+        seen[item] = true;
+        return true;
+    });
+}
+
+function windowsExecutableCandidates() {
+    var installRoots = [
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'YT2Premiere'),
+        path.join(process.env.ProgramW6432 || '', 'YT2Premiere'),
+        path.join(process.env.ProgramFiles || '', 'YT2Premiere'),
+        path.join(process.env['ProgramFiles(x86)'] || '', 'YT2Premiere')
+    ];
+
+    var candidates = [path.join(execPath, 'YT2Premiere.exe')];
+    uniqueExistingPaths(installRoots).forEach(function(installRoot) {
+        candidates.push(path.join(installRoot, 'YT2Premiere.exe'));
+        candidates.push(path.join(installRoot, 'exec', 'YT2Premiere.exe'));
+    });
+
+    return uniqueExistingPaths(candidates);
+}
+
 function getWindowsBackendPath() {
     var registryPath = readInstallPathFromRegistry();
     if (registryPath) {
         return registryPath;
     }
 
-    var baseDirs = uniqueNonEmpty([
-        process.env.YT2PREMIERE_HOME || '',
-        execPath,
-        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'YT2Premiere'),
-        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'YT2Premiere', 'exec'),
-        path.join(process.env.ProgramW6432 || '', 'YT2Premiere'),
-        path.join(process.env.ProgramW6432 || '', 'YT2Premiere', 'exec'),
-        path.join(process.env.ProgramFiles || '', 'YT2Premiere'),
-        path.join(process.env.ProgramFiles || '', 'YT2Premiere', 'exec'),
-        path.join(process.env['ProgramFiles(x86)'] || '', 'YT2Premiere'),
-        path.join(process.env['ProgramFiles(x86)'] || '', 'YT2Premiere', 'exec')
-    ]);
-
-    var candidates = [];
-    baseDirs.forEach(function(baseDir) {
-        candidates.push(path.join(baseDir, 'YT2Premiere.exe'));
-        candidates.push(path.join(baseDir, 'exec', 'YT2Premiere.exe'));
-    });
-
-    for (var k = 0; k < candidates.length; k++) {
-        var candidate = candidates[k];
-        if (fs.existsSync(candidate)) {
-            return candidate;
-        }
-    }
-
-    return null;
+    var candidates = windowsExecutableCandidates();
+    return candidates.length > 0 ? candidates[0] : null;
 }
 
 function launchBackend() {
@@ -162,21 +154,16 @@ function launchBackend() {
             return;
         }
         var appleScriptCommand = 'tell application "Finder" to launch application "' + macExecutablePath + '"';
-        exec("osascript -e '" + appleScriptCommand + "' -e 'delay 2' -e 'tell application \"System Events\" to set visible of process \"YT2Premiere\" to false'", function(err, stdout, stderr) {
+        exec("osascript -e '" + appleScriptCommand + "' -e 'delay 2' -e 'tell application \"System Events\" to set visible of process \"YT2Premiere\" to false'", function(err) {
             if (err) {
                 console.error('Error executing command:', err);
-            }
-            if (stdout) {
-                console.log('Output:', stdout);
-            }
-            if (stderr) {
-                console.error('Error output:', stderr);
+                return;
             }
         });
     } else if (os.platform() === 'win32') {
         var winExecutablePath = getWindowsBackendPath();
         if (!winExecutablePath) {
-            console.error('YT2Premiere backend not found. Checked registry, installed locations and YT2PREMIERE_HOME.');
+            console.error('YT2Premiere backend not found. Checked the registry and standard install folders.');
             return;
         }
         try {
@@ -192,7 +179,6 @@ function launchBackend() {
 
 isBackendAlive(function(alive) {
     if (alive) {
-        console.log('YT2Premiere backend already running');
         return;
     }
     launchBackend();

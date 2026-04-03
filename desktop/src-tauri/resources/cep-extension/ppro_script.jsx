@@ -1,8 +1,8 @@
-// enable QE, second undocumented hidden API used by Adobe Quality Engineering team to do automated test, contains some juicy stuff
+// Enable Premiere's internal QE bridge used by this automation layer.
 app.enableQE();
 qe.setDebugDatabaseEntry("dvascripting.EnabledInternalDOM", "true");
 
-// polyfill 'indexOf' method on ExtendScript arrays
+// ExtendScript does not reliably provide Array#indexOf in older hosts.
 if(!Array.prototype.indexOf){
 	Array.prototype.indexOf = function(item){
 		var i = this.length;
@@ -13,12 +13,12 @@ if(!Array.prototype.indexOf){
 	}
 }
 
-// init variable used by pymiere
+// Keep request-scoped ids out of the global namespace.
 if($.hasOwnProperty('_pymiere') === false){
 	$._pymiere = {generatedIds:[]}
 }
 
-// register function to generate new object id for pymiere
+// Generate stable ids for objects returned through the bridge.
 $._pymiere.generateId = function(){
 	var result = '';
 	var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -32,24 +32,7 @@ $._pymiere.generateId = function(){
 	return result;
 }
 
-// replacer function to pass to ExtendJSON.stringify preventing infinite loop for $ objects
-function internal_variables_replacer(key, value){if(key !== "tmp" && key !== "_pymiere"){return value}}
-
-
-// load ExtendJson custom json converter for extendscript (not in a separate file because sometimes it doesn't load...)
-/*
-    json2.js
-    2014-02-04
-
-    Public Domain.
-
-    Modified to add depth param on stringify + use the reflect interface in extend script
-	to list properties on objects
-*/
-
-
-// Create a ExtendJSON object only if one does not already exist. We create the
-// methods in a closure to avoid creating global variables.
+// Inline ExtendJSON because external CEP includes can fail to load reliably.
 
 if (typeof ExtendJSON !== 'object') {
     ExtendJSON = {};
@@ -89,7 +72,6 @@ if (typeof ExtendJSON !== 'object') {
         gap,
         indent,
         meta,
-		maxdepth,
         rep;
 
 
@@ -120,12 +102,7 @@ if (typeof ExtendJSON !== 'object') {
             length,
             mind = gap,
             partial,
-            value = holder[key],
-			nextdepth,
-			currentdepth;
-
-		currentdepth = dstatus;
-		nextdepth = (dstatus === -1) ? -1 : 1;
+            value = holder[key];
 
 
 
@@ -209,7 +186,7 @@ if (typeof ExtendJSON !== 'object') {
             } else {
 
 // Otherwise, iterate through all of the keys in the object.
-				// modify to use rflect to list properties
+				// ExtendScript reflection exposes properties not returned by plain enumeration.
 				var all_keys = [];
 				for (k in value){all_keys.push(k)}; // classic method
 				if (typeof value.reflect !== 'undefined') { // add reflect method
