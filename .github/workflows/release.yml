@@ -22,85 +22,76 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
-          cache-dependency-path: extension/package-lock.json
+          cache-dependency-path: |
+            extension/package-lock.json
+            desktop/package-lock.json
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: backend/requirements-build.txt
-
-      - name: Install Windows packaging dependencies
-        shell: pwsh
-        run: choco install ffmpeg aria2 nsis deno -y --no-progress
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install extension dependencies
         working-directory: extension
         run: npm ci --no-audit --no-fund
 
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+
+      - name: Test extension logic
+        working-directory: extension
+        run: npm run test
+
+      - name: Test desktop frontend logic
+        working-directory: desktop
+        run: npm run test
+
+      - name: Test Rust backend
+        working-directory: desktop/src-tauri
+        run: cargo test
+
       - name: Build extension
         working-directory: extension
         run: npm run build
 
-      - name: Install backend build dependencies
-        run: python -m pip install --disable-pip-version-check -r backend/requirements-build.txt
-
-      - name: Build backend executable
-        working-directory: backend
-        run: python -m PyInstaller YT2Premiere.spec --noconfirm --clean --distpath dist --workpath build
-
-      - name: Stage portable assets
+      - name: Guard extension artifact
         shell: pwsh
         run: |
-          $stageDir = Join-Path $PWD 'dist\staging'
-          $execDir = Join-Path $stageDir 'exec'
-          $chromeExtensionDir = Join-Path $stageDir 'chrome-extension'
-          $cepExtensionDir = Join-Path $stageDir 'cep-extension'
-          $releaseDir = Join-Path $PWD 'dist\release'
+          $backgroundBundle = 'extension/dist/background.js'
+          $manifestFile = 'extension/dist/manifest.json'
 
-          Remove-Item -Recurse -Force $stageDir, $releaseDir -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path $execDir, $chromeExtensionDir, $cepExtensionDir, $releaseDir | Out-Null
-
-          Copy-Item 'backend/dist/YT2Premiere.exe' (Join-Path $execDir 'YT2Premiere.exe')
-
-          $ffmpegExe = (Get-Command ffmpeg -ErrorAction Stop).Source
-          $ffmpegBinDir = Join-Path $execDir 'ffmpeg_win\bin'
-          New-Item -ItemType Directory -Force -Path $ffmpegBinDir | Out-Null
-          Copy-Item $ffmpegExe (Join-Path $ffmpegBinDir 'ffmpeg.exe')
-
-          $ffprobeExe = Join-Path (Split-Path $ffmpegExe) 'ffprobe.exe'
-          if (Test-Path $ffprobeExe) {
-            Copy-Item $ffprobeExe (Join-Path $ffmpegBinDir 'ffprobe.exe')
+          if (Select-String -Quiet -Path $backgroundBundle -Pattern 'socket\.io-client|Could not subscribe to download events|127\.0\.0\.1:3001') {
+            throw 'Legacy extension runtime detected in extension/dist/background.js'
           }
 
-          $aria2Exe = (Get-Command aria2c -ErrorAction Stop).Source
-          $aria2Dir = Join-Path $execDir 'aria2c'
-          New-Item -ItemType Directory -Force -Path $aria2Dir | Out-Null
-          Copy-Item $aria2Exe (Join-Path $aria2Dir 'aria2c.exe')
+          if (Select-String -Quiet -Path $manifestFile -Pattern 'ws://127\.0\.0\.1|ws://localhost') {
+            throw 'Legacy WebSocket host permissions detected in extension/dist/manifest.json'
+          }
 
-          $denoExe = (Get-Command deno -ErrorAction Stop).Source
-          $denoDir = Join-Path $execDir 'deno'
-          New-Item -ItemType Directory -Force -Path $denoDir | Out-Null
-          Copy-Item $denoExe (Join-Path $denoDir 'deno.exe')
+      - name: Build desktop bundle
+        working-directory: desktop
+        run: npm run tauri:build
+
+      - name: Stage release assets
+        shell: pwsh
+        run: |
+          $releaseDir = Join-Path $PWD 'dist\release'
+          $chromeExtensionDir = Join-Path $PWD 'dist\chrome-extension'
+          $cepExtensionDir = Join-Path $PWD 'dist\cep-extension'
+
+          Remove-Item -Recurse -Force $releaseDir, $chromeExtensionDir, $cepExtensionDir -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $releaseDir, $chromeExtensionDir, $cepExtensionDir | Out-Null
 
           Copy-Item 'extension/dist/*' $chromeExtensionDir -Recurse
           Copy-Item 'cep-extension/*' $cepExtensionDir -Recurse
 
-          Compress-Archive -Path (Join-Path $execDir '*') -DestinationPath (Join-Path $releaseDir 'YT2Premiere-backend-win64.zip') -Force
           Compress-Archive -Path (Join-Path $chromeExtensionDir '*') -DestinationPath (Join-Path $releaseDir 'YT2Premiere-chrome-extension.zip') -Force
           Compress-Archive -Path (Join-Path $cepExtensionDir '*') -DestinationPath (Join-Path $releaseDir 'YT2Premiere-cep-extension.zip') -Force
 
-      - name: Build NSIS installer
-        run: makensis installer/installer.nsi
-
-      - name: Finalize release assets
-        shell: pwsh
-        run: |
-          $releaseDir = Join-Path $PWD 'dist\release'
-          Move-Item 'dist/YT2PremiereInstaller.exe' (Join-Path $releaseDir 'YT2PremiereInstaller.exe') -Force
+          Get-ChildItem 'desktop/src-tauri/target/release/bundle/msi/*.msi' | ForEach-Object {
+            Copy-Item $_.FullName $releaseDir -Force
+          }
 
           $hashLines = Get-ChildItem $releaseDir -File |
             Sort-Object Name |

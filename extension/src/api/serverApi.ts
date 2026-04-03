@@ -37,6 +37,8 @@ function buildStatusSignature(status: DownloadProgressState): string {
     status.stage ?? '',
     String(status.indeterminate ?? ''),
     status.percentage ?? '',
+    status.speed ?? '',
+    status.eta ?? '',
     status.detail ?? '',
     status.path ?? '',
     status.message ?? '',
@@ -133,6 +135,8 @@ function ensureRuntimeListener() {
         stage: (String(message.stage ?? 'downloading').trim() as DownloadProgressState['stage']),
         indeterminate: Boolean(message.indeterminate ?? false),
         percentage: String(message.percentage ?? '').trim() || undefined,
+        speed: String(message.speed ?? '').trim() || undefined,
+        eta: String(message.eta ?? '').trim() || undefined,
         detail: String(message.detail ?? '').trim() || undefined,
       });
       return;

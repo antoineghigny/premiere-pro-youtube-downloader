@@ -4,10 +4,9 @@ This document is for contributors working from source. It is not part of the end
 
 ## Repository layout
 
-- `backend/`: local API server, download pipeline, PyInstaller spec
+- `desktop/`: Tauri desktop app, React frontend, Rust backend
 - `extension/`: Chrome extension source and webpack build
 - `cep-extension/`: Premiere CEP panel used for Premiere automation
-- `installer/`: NSIS installer definition
 - `.github/workflows/`: CI and release automation
 - `tools/`: optional local binaries for maintainer builds only, not committed
 
@@ -16,8 +15,8 @@ This document is for contributors working from source. It is not part of the end
 Requirements:
 
 - Windows is the supported release target
-- Node.js 20
-- Python 3.12
+- Node.js 22
+- Rust stable
 - Google Chrome
 - Adobe Premiere Pro
 
@@ -26,14 +25,15 @@ Install dependencies:
 ```bash
 cd extension
 npm ci
-cd ..
-python -m pip install -r backend/requirements.txt
+
+cd ../desktop
+npm ci
 ```
 
 Recommended day-to-day workflow:
 
 1. Install the Premiere CEP panel for development.
-2. Run the backend from source during development.
+2. Run the desktop app from source during development.
 3. Build and load the unpacked Chrome extension.
 
 ## Premiere setup for development
@@ -56,11 +56,11 @@ After running it:
 2. Open `Window > Extensions (Legacy) > YT2Premiere`.
 3. Keep Premiere open while testing import automation.
 
-Start the backend from source:
+Start the desktop app from source:
 
 ```bash
-cd backend
-python server.py
+cd desktop
+npm run tauri:dev
 ```
 
 Build the unpacked extension once:
@@ -86,25 +86,37 @@ Load the extension in Chrome:
 
 After each rebuild, click `Reload` on the extension card in Chrome, then refresh the active YouTube tab.
 
-## Packaged backend testing
+Important:
 
-You only need the `.exe` when you want to validate the packaged backend instead of the source server.
+- the CEP bridge now tries to locate an installed `YT2Premiere.exe` through the Windows registry
+- if you are testing only from source and do not have the packaged app installed, keep `npm run tauri:dev` running before opening the CEP panel
 
-Build it with:
+## Packaged desktop testing
+
+Build the packaged desktop app with:
 
 ```bash
-cd backend
-python -m PyInstaller YT2Premiere.spec --noconfirm --clean --distpath dist --workpath build
+cd desktop
+npm run tauri:build
 ```
 
-The resulting executable is:
+Useful local validation commands:
 
-`C:\Users\Antoine\Code\YT2Premiere\backend\dist\YT2Premiere.exe`
+```bash
+cd desktop/src-tauri
+cargo check
 
-Use the packaged `.exe` only to validate packaging behavior. Normal feature development should keep using `python server.py`.
+cd ..
+npm run build
+
+cd ../extension
+npm run build
+```
+
+The packaged installer is emitted under `desktop/src-tauri/target/release/bundle/`.
 
 ## CI and releases
 
-- `.github/workflows/ci.yml` validates the extension build and the versioned PyInstaller spec on every push and pull request.
-- `.github/workflows/release.yml` builds the Windows installer artifact on every push to `main`, on manual dispatch, and on tags matching `v*`.
-- `.github/workflows/release.yml` is the canonical packaging path for `YT2PremiereInstaller.exe`; it rebuilds the installer from the current `backend/`, `extension/`, `cep-extension/`, and `installer/` sources.
+- `.github/workflows/ci.yml` validates the extension build, desktop frontend build, and Rust backend checks on every push and pull request.
+- `.github/workflows/release.yml` builds the Windows desktop release artifacts on every push to `main`, on manual dispatch, and on tags matching `v*`.
+- `.github/workflows/release.yml` is the canonical packaging path; it rebuilds the desktop app, Chrome extension, and CEP payloads from the current `desktop/`, `extension/`, and `cep-extension/` sources.

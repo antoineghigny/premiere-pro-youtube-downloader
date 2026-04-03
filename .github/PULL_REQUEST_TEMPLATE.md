@@ -4,10 +4,10 @@ Describe the change clearly and state the user-facing outcome.
 
 ## Scope
 
-- [ ] Backend
+- [ ] Desktop app
 - [ ] Chrome extension
 - [ ] Premiere CEP
-- [ ] Installer
+- [ ] Release tooling
 - [ ] CI or release workflow
 - [ ] Documentation
 
@@ -15,8 +15,9 @@ Describe the change clearly and state the user-facing outcome.
 
 List the checks you ran.
 
-- [ ] `npm run build`
-- [ ] `python -m compileall backend`
+- [ ] `cd desktop/src-tauri && cargo check`
+- [ ] `cd desktop && npm run build`
+- [ ] `cd extension && npm run build`
 - [ ] Manual smoke test
 
 ## Notes

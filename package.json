@@ -3,6 +3,12 @@
   "private": true,
   "scripts": {
     "build": "npm --prefix extension run build",
-    "dev": "npm --prefix extension run dev"
+    "dev": "npm --prefix extension run dev",
+    "test": "npm run test:desktop && npm run test:extension && npm run test:rust",
+    "test:desktop": "npm --prefix desktop run test",
+    "test:extension": "npm --prefix extension run test",
+    "test:rust": "cargo test --manifest-path desktop/src-tauri/Cargo.toml",
+    "build:desktop": "npm --prefix desktop run tauri:build",
+    "dev:desktop": "npm --prefix desktop run tauri:dev"
   }
 }

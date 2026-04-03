@@ -42,6 +42,8 @@ export interface DownloadProgressState {
   stage: DownloadStage;
   indeterminate: boolean;
   percentage?: string;
+  speed?: string;
+  eta?: string;
   detail?: string;
   updatedAt?: number;
   path?: string;

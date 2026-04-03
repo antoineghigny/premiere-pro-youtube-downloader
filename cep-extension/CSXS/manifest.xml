@@ -30,9 +30,6 @@
 				</Resources>
 				<Lifecycle>
 					<AutoVisible>false</AutoVisible>
-					<StartOn>
-						<Event>com.adobe.csxs.events.ApplicationActivate</Event>
-                    </StartOn>
 				</Lifecycle>
 				<UI>
 					<Type>Custom</Type>

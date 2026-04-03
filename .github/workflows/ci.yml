@@ -18,31 +18,57 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
-          cache-dependency-path: extension/package-lock.json
+          cache-dependency-path: |
+            extension/package-lock.json
+            desktop/package-lock.json
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: backend/requirements-build.txt
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install extension dependencies
         working-directory: extension
         run: npm ci --no-audit --no-fund
 
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+
+      - name: Test desktop frontend logic
+        working-directory: desktop
+        run: npm run test
+
+      - name: Test extension logic
+        working-directory: extension
+        run: npm run test
+
+      - name: Test Rust backend
+        working-directory: desktop/src-tauri
+        run: cargo test
+
       - name: Build extension
         working-directory: extension
         run: npm run build
 
-      - name: Install backend build dependencies
-        run: python -m pip install --disable-pip-version-check -r backend/requirements-build.txt
+      - name: Guard extension artifact
+        shell: pwsh
+        run: |
+          $backgroundBundle = 'extension/dist/background.js'
+          $manifestFile = 'extension/dist/manifest.json'
 
-      - name: Compile backend modules
-        run: python -m compileall backend
+          if (Select-String -Quiet -Path $backgroundBundle -Pattern 'socket\.io-client|Could not subscribe to download events|127\.0\.0\.1:3001') {
+            throw 'Legacy extension runtime detected in extension/dist/background.js'
+          }
 
-      - name: Validate PyInstaller spec
-        working-directory: backend
-        run: python -m PyInstaller YT2Premiere.spec --noconfirm --clean --distpath dist --workpath build
+          if (Select-String -Quiet -Path $manifestFile -Pattern 'ws://127\.0\.0\.1|ws://localhost') {
+            throw 'Legacy WebSocket host permissions detected in extension/dist/manifest.json'
+          }
+
+      - name: Build desktop frontend
+        working-directory: desktop
+        run: npm run build
+
+      - name: Check Rust backend
+        working-directory: desktop/src-tauri
+        run: cargo check

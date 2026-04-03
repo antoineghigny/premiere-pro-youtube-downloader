@@ -1,57 +1,108 @@
 # YT2Premiere
 
-YT2Premiere adds download actions directly on YouTube and sends the result to Adobe Premiere Pro.
+YT2Premiere is a desktop download manager for `yt-dlp` sources with optional Adobe Premiere Pro integration.
 
-It is made of three parts:
+It combines a Tauri desktop app, a Chrome extension, and a Premiere CEP bridge so you can start downloads from the app or the browser and optionally import finished files into Premiere.
 
-- a Chrome extension injected on YouTube
-- a local Python backend running on `127.0.0.1:3001`
-- a CEP panel for Premiere Pro
+## Features
 
-## User install
+- Download from `yt-dlp` compatible sites
+- Queue management with history and retry support
+- FFmpeg output presets, codecs, resolution, audio export, and post-processing
+- Chrome extension that sends downloads to the local desktop app
+- Optional Adobe Premiere Pro import workflow
+- Single-instance desktop app with tray mode and background mode
+- Rust backend embedded in the desktop app
 
-End users should not install Node, Python, or run terminal commands.
+## Components
 
-Windows installers are available in two GitHub-native places:
+- `desktop/` - Tauri desktop app and embedded Rust backend
+- `extension/` - Chrome extension
+- `cep-extension/` - Adobe Premiere Pro CEP bridge
 
-- stable releases: [GitHub Releases](https://github.com/antoineghigny/premiere-pro-youtube-downloader/releases)
-- latest `main` build artifact: [Release workflow runs](https://github.com/antoineghigny/premiere-pro-youtube-downloader/actions/workflows/release.yml)
-- installer filename: `YT2PremiereInstaller.exe`
+## Install
 
-Install flow:
+### Desktop app
 
-- download `YT2PremiereInstaller.exe`
-- run the installer
-- open `chrome://extensions`
-- enable `Developer mode`
-- click `Load unpacked`
-- select `C:\Program Files\YT2Premiere\chrome-extension`
-- use YouTube download buttons normally
+1. Download the latest Windows installer from Releases.
+2. Install the `.msi`.
+3. Launch `YT2Premiere`.
 
-After installation, YT2Premiere works like this:
+### Chrome extension
 
-- the Chrome extension adds download actions directly on YouTube
-- when you click one, the installed YT2Premiere app downloads the file on your machine
-- if Premiere Pro is open, the downloaded file is sent into the current project automatically
-- if Premiere Pro is not open or no project is available, the file is saved to the fallback download folder
+1. Download and extract `YT2Premiere-chrome-extension.zip`.
+2. Open `chrome://extensions`.
+3. Enable `Developer mode`.
+4. Click `Load unpacked`.
+5. Select the extracted extension folder.
 
-The installer is rebuilt from the current repository state by `.github/workflows/release.yml`:
+### Premiere bridge
 
-- every push to `main` produces a fresh `release-assets` artifact in GitHub Actions
-- every tag matching `v*` publishes the same build output as a GitHub Release
-- backend, extension, CEP, and installer changes all come from the same commit, so the installer stays in sync with the code
+1. Download and extract `YT2Premiere-cep-extension.zip`.
+2. Copy it to your Adobe CEP extensions directory.
+3. Open Premiere Pro.
+4. Open `Window > Extensions (Legacy) > YT2Premiere`.
 
-## Runtime behavior
+On Windows, the CEP target folder is typically:
 
-- settings are stored in the user config directory:
-  - Windows: `%APPDATA%\YT2Premiere`
-  - macOS: `~/Library/Application Support/YT2Premiere`
-  - Linux: `${XDG_CONFIG_HOME:-~/.config}/YT2Premiere`
-- the installer does not register Windows startup entries, scheduled tasks, or auto-launch behavior
-- downloads default to the current Premiere project folder when Premiere is available
-- otherwise downloads fall back to `~/Downloads/YT2Premiere/YYYY-MM-DD`
-- the extension routes backend traffic through its service worker; Chrome can present these localhost requests as either the pinned extension origin or the active YouTube tab origin, so the local API trusts both
+`%APPDATA%\Adobe\CEP\extensions\com.yt2premiere.cep`
 
-## Contributing
+## Usage
 
-Source setup, local development, and release automation are documented in [CONTRIBUTING.md](./CONTRIBUTING.md).
+1. Launch `YT2Premiere`.
+2. Paste a video URL in the desktop app or trigger a download from the Chrome extension.
+3. Adjust output options if needed.
+4. Start the download.
+5. Enable Premiere import only when you want the finished media added to the current project.
+
+## Tech stack
+
+- Tauri 2
+- Rust + Axum
+- React 19 + Vite
+- Tailwind CSS v4 + shadcn/ui
+- Chrome Extension Manifest V3
+- Adobe CEP
+
+## Development
+
+### Requirements
+
+- Node.js 22
+- Rust stable
+- Google Chrome
+- Adobe Premiere Pro for import testing
+
+### Setup
+
+```bash
+cd extension
+npm ci
+
+cd ../desktop
+npm ci
+```
+
+### Run the desktop app
+
+```bash
+npm run dev:desktop
+```
+
+### Build the extension
+
+```bash
+cd extension
+npm run build
+```
+
+### Run the test suite
+
+```bash
+npm test
+```
+
+## Documentation
+
+- [Architecture](./ARCHITECTURE.md)
+- [Contributing](./CONTRIBUTING.md)
