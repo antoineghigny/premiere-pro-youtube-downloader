@@ -127,7 +127,6 @@ export default function App() {
         downloadMP3: outputFormat === 'mp3',
         ffmpeg: {
           ...ffmpegOptions,
-          resolution: quality,
         },
       },
       info

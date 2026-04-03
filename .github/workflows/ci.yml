@@ -27,6 +27,10 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Download desktop sidecars
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\scripts\download-binaries.ps1
+
       - name: Install extension dependencies
         working-directory: extension
         run: npm ci --no-audit --no-fund

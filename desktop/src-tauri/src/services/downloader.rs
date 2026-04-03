@@ -122,7 +122,7 @@ fn build_format_selector(request: &DownloadRequest, settings: &AppSettings) -> S
     format!("bestvideo*[height<=?{ceiling}]+bestaudio/best[height<=?{ceiling}]/best")
 }
 
-fn resolve_download_dir(request: &DownloadRequest, settings: &AppSettings) -> PathBuf {
+pub(crate) fn resolve_download_dir(request: &DownloadRequest, settings: &AppSettings) -> PathBuf {
     if let Some(download_path) = request.download_path.as_deref() {
         if !download_path.trim().is_empty() {
             return PathBuf::from(download_path.trim());

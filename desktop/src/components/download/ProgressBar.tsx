@@ -23,6 +23,23 @@ function stageLabel(item: DownloadItem): string {
   }
 }
 
+function stageToneClassName(item: DownloadItem): string {
+  switch (item.stage) {
+    case 'downloading':
+      return 'bg-[linear-gradient(90deg,#1d7de3,#38bdf8)]';
+    case 'clipping':
+      return 'bg-[linear-gradient(90deg,#00a8ff,#4bcffa)]';
+    case 'importing':
+      return 'bg-[linear-gradient(90deg,#6116FF,#8a6cff)]';
+    case 'complete':
+      return 'bg-[linear-gradient(90deg,#0f9f74,#20c997)]';
+    case 'failed':
+      return 'bg-[linear-gradient(90deg,#ff5a7a,#ff3d3d)]';
+    default:
+      return 'bg-[linear-gradient(90deg,#5c677d,#98a6b3)]';
+  }
+}
+
 export function ProgressBar({ item }: ProgressBarProps) {
   const isWorking = item.indeterminate && item.status !== 'complete' && item.status !== 'failed';
   const progress = item.status === 'complete'
@@ -36,17 +53,12 @@ export function ProgressBar({ item }: ProgressBarProps) {
       <div
         className={clsx(
           'h-full rounded-full transition-[width,background] duration-500 ease-out',
-          item.stage === 'downloading' && 'bg-[linear-gradient(90deg,#1dd1a1,#20c997)]',
-          item.stage === 'clipping' && 'bg-[linear-gradient(90deg,#00a8ff,#4bcffa)]',
-          item.stage === 'importing' && 'bg-[linear-gradient(90deg,#6116FF,#8a6cff)]',
-          item.stage === 'failed' && 'bg-[linear-gradient(90deg,#ff5a7a,#ff3d3d)]',
-          (item.stage === 'preparing' || item.stage === 'resolving' || item.stage === 'complete') &&
-            'bg-[linear-gradient(90deg,#7f8c8d,#b2bec3)]'
+          stageToneClassName(item)
         )}
         style={{ width: `${progress}%` }}
       />
       {isWorking ? (
-        <div className="yt2pp-progress-runner absolute inset-y-[1px] left-0 w-[14%] rounded-full bg-white/40" />
+        <div className="yt2pp-progress-runner absolute inset-y-[1px] left-0 w-[14%] rounded-full bg-white/36" />
       ) : null}
       <div className="pointer-events-none absolute inset-0 flex items-center px-2 text-[9px] font-medium uppercase tracking-[0.16em] text-white/65">
         <span className="truncate">{stageLabel(item)}</span>

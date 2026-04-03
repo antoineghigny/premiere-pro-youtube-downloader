@@ -107,7 +107,8 @@ export function StatusBar({
                   className="relative h-full overflow-hidden bg-[linear-gradient(90deg,#1d7de3,#38bdf8)] transition-[width] duration-500"
                   style={{ width: `${activePercent}%` }}
                 >
-                  <div className="yt2pp-status-active-stripes absolute inset-0" />
+                  <div className="yt2pp-progress-runner absolute inset-y-[1px] left-0 w-[9%] rounded-full bg-white/30" />
+                  <div className="yt2pp-status-active-stripes absolute inset-0 opacity-65" />
                 </div>
               ) : null}
               {failedPercent > 0 ? (

@@ -311,14 +311,21 @@ async fn run_ffmpeg(
         .ok_or_else(|| "Could not capture FFmpeg stdout".to_string())?;
     let mut stdout_reader = BufReader::new(stdout).lines();
 
-    let mut stderr_output = String::new();
-    if let Some(stderr) = child_handle.lock().await.stderr.take() {
+    let stderr = child_handle
+        .lock()
+        .await
+        .stderr
+        .take()
+        .ok_or_else(|| "Could not capture FFmpeg stderr".to_string())?;
+    let stderr_task = tokio::spawn(async move {
+        let mut stderr_output = String::new();
         let mut stderr_reader = BufReader::new(stderr);
         stderr_reader
             .read_to_string(&mut stderr_output)
             .await
             .map_err(|error| format!("Could not read FFmpeg stderr: {}", error))?;
-    }
+        Ok::<String, String>(stderr_output)
+    });
 
     while let Some(line) = stdout_reader
         .next_line()
@@ -349,6 +356,10 @@ async fn run_ffmpeg(
         .await
         .map_err(|error| format!("Could not wait for FFmpeg: {}", error))?;
     state.release_child_process(&child_key);
+    let stderr_output = stderr_task
+        .await
+        .map_err(|error| format!("Could not join FFmpeg stderr reader: {}", error))??;
+
     if !status.success() {
         return Err(if stderr_output.trim().is_empty() {
             "FFmpeg failed while processing the downloaded media".to_string()

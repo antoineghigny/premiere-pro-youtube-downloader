@@ -21,6 +21,27 @@ import {
 let cachedBackendPort: number | null = null;
 let pendingBackendPort: Promise<number> | null = null;
 
+export class ApiError extends Error {
+  duplicate = false;
+  requestId?: string;
+  status?: string;
+
+  constructor(
+    message: string,
+    options?: {
+      duplicate?: boolean;
+      requestId?: string;
+      status?: string;
+    }
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    this.duplicate = Boolean(options?.duplicate);
+    this.requestId = options?.requestId;
+    this.status = options?.status;
+  }
+}
+
 export function invalidateBackendPortCache() {
   cachedBackendPort = null;
 }
@@ -107,7 +128,11 @@ async function apiRequest<T>(path: string, init?: RequestInit, allowRetry = true
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({ error: response.statusText }));
-    throw new Error(String(data.error ?? 'Request failed'));
+    throw new ApiError(String(data.error ?? 'Request failed'), {
+      duplicate: Boolean(data.duplicate),
+      requestId: typeof data.requestId === 'string' ? data.requestId : undefined,
+      status: typeof data.status === 'string' ? data.status : undefined,
+    });
   }
 
   if (response.status === 204) {

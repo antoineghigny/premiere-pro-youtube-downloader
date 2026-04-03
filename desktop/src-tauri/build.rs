@@ -5,6 +5,14 @@ use std::{
 
 fn copy_if_exists(source: &Path, destination: &Path) {
     if !source.exists() {
+        if destination.exists() {
+            println!(
+                "cargo:warning=Using prebuilt sidecar already present at {}",
+                destination.display()
+            );
+            return;
+        }
+
         println!("cargo:warning=Missing sidecar source: {}", source.display());
         return;
     }

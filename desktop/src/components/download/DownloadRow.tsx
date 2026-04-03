@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { FolderOpen, RefreshCcw, Trash2 } from 'lucide-react';
+import { FolderOpen, LoaderCircle, RefreshCcw, Trash2 } from 'lucide-react';
 
 import type { DownloadItem } from '../../api/types';
 import { formatBytes, formatElapsed, formatRepresentativeSpeed } from '../../utils/format';
@@ -17,6 +17,20 @@ type DownloadRowProps = {
 };
 
 export function DownloadRow({ item, onRetry, onRemove, onReveal, onMove }: DownloadRowProps) {
+  const isComplete = item.status === 'complete';
+  const isRunning = item.status === 'running' || item.status === 'starting';
+  const availabilityLabel = isComplete
+    ? 'Ready to open'
+    : item.status === 'failed'
+      ? 'Download failed'
+      : item.stage === 'clipping'
+        ? 'Post-processing'
+        : item.stage === 'importing'
+          ? 'Importing to Premiere'
+          : item.stage === 'downloading'
+            ? 'Downloading'
+            : 'Starting';
+
   return (
     <div
       draggable={item.status === 'queued'}
@@ -48,15 +62,19 @@ export function DownloadRow({ item, onRetry, onRemove, onReveal, onMove }: Downl
                 ? 'green'
                 : item.status === 'failed'
                   ? 'red'
-                  : item.stage === 'importing'
+                  : item.stage === 'downloading' || item.stage === 'clipping' || item.stage === 'importing'
                     ? 'purple'
-                    : item.stage === 'clipping'
-                      ? 'blue'
-                      : 'neutral'
+                    : 'neutral'
             }
           >
-            {item.status}
+            {isComplete ? 'ready' : item.status === 'failed' ? 'failed' : 'running'}
           </Badge>
+          {isRunning ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/20 bg-sky-400/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-sky-100">
+              <LoaderCircle className="h-3 w-3 animate-spin" />
+              {availabilityLabel}
+            </span>
+          ) : null}
           <span className="truncate">{item.detail || item.url}</span>
         </div>
       </div>
@@ -65,7 +83,7 @@ export function DownloadRow({ item, onRetry, onRemove, onReveal, onMove }: Downl
         <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
           <span>{item.percentageLabel || (item.indeterminate ? 'Working...' : `${item.progress.toFixed(0)}%`)}</span>
           <span className={clsx(item.status === 'failed' && 'text-red-200')}>
-            {item.error || item.stage}
+            {item.error || availabilityLabel}
           </span>
         </div>
       </div>
@@ -80,8 +98,10 @@ export function DownloadRow({ item, onRetry, onRemove, onReveal, onMove }: Downl
         <Button
           size="sm"
           variant="ghost"
+          disabled={!isComplete}
           onClick={() => onReveal(item)}
           icon={<FolderOpen className="h-4 w-4" />}
+          title={isComplete ? 'Open file' : 'Available when the download is complete'}
         />
         <Button
           size="sm"

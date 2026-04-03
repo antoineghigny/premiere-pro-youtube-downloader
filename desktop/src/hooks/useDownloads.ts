@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useMemo } from 'react';
 
 import {
+  ApiError,
   clearHistoryEntries,
   deleteHistoryEntry,
   getHistory,
@@ -220,6 +221,12 @@ export function useDownloads(settings: DesktopSettings) {
         }
       } catch (error) {
         if (!cancelled) {
+          if (error instanceof ApiError && error.duplicate) {
+            removeDownload(nextItem.requestId);
+            socketClient.unsubscribe(nextItem.requestId);
+            return;
+          }
+
           markFailed(nextItem.requestId, error instanceof Error ? error.message : 'Could not start the download');
           socketClient.unsubscribe(nextItem.requestId);
         }
@@ -229,7 +236,7 @@ export function useDownloads(settings: DesktopSettings) {
     return () => {
       cancelled = true;
     };
-  }, [items, markFailed, markStarting, settings.concurrentDownloads]);
+  }, [items, markFailed, markStarting, removeDownload, settings.concurrentDownloads]);
 
   const queueDownload = useCallback(
     (request: QueueDownloadInput, preview?: VideoInfo | null) => {
