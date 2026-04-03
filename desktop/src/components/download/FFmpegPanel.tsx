@@ -1,6 +1,6 @@
 import { Sparkles } from 'lucide-react';
 
-import type { FFmpegOptions, FFmpegPreset } from '../../api/types';
+import type { FFmpegOptions, FFmpegPreset, PremiereStatusResponse } from '../../api/types';
 import { Button } from '../common/Button';
 import { Checkbox } from '../common/Checkbox';
 import { Dropdown, type DropdownOption } from '../common/Dropdown';
@@ -33,7 +33,8 @@ const AUDIO_CODEC_OPTIONS: DropdownOption[] = [
 ];
 
 const RESOLUTION_OPTIONS: DropdownOption[] = [
-  { value: 'highest', label: 'Highest' },
+  { value: 'original', label: 'Original' },
+  { value: 'highest', label: 'Match source' },
   { value: '2160', label: '4K' },
   { value: '1440', label: '1440p' },
   { value: '1080', label: '1080p' },
@@ -49,6 +50,7 @@ const BITRATE_OPTIONS: DropdownOption[] = [
 ];
 
 const AUDIO_BITRATE_OPTIONS: DropdownOption[] = [
+  { value: 'auto', label: 'Auto' },
   { value: '128k', label: '128 kbps' },
   { value: '192k', label: '192 kbps' },
   { value: '256k', label: '256 kbps' },
@@ -67,8 +69,7 @@ type FFmpegPanelProps = {
   open: boolean;
   value: FFmpegOptions;
   presets: FFmpegPreset[];
-  premiereRunning: boolean;
-  cepRegistered: boolean;
+  premiereStatus: PremiereStatusResponse;
   onChange: (patch: Partial<FFmpegOptions>) => void;
   onSavePreset: () => void;
   onLoadPreset: (presetId: string) => void;
@@ -78,8 +79,7 @@ export function FFmpegPanel({
   open,
   value,
   presets,
-  premiereRunning,
-  cepRegistered,
+  premiereStatus,
   onChange,
   onSavePreset,
   onLoadPreset,
@@ -88,12 +88,10 @@ export function FFmpegPanel({
     return null;
   }
 
-  const premiereReady = premiereRunning && cepRegistered;
-  const premiereLabel = !premiereRunning
-    ? 'Premiere offline'
-    : !cepRegistered
-      ? 'Open CEP panel to import'
-      : 'Import to Premiere';
+  const premiereReady = premiereStatus.canImport;
+  const premiereLabel = premiereReady
+    ? 'Add to Premiere'
+    : premiereStatus.reason;
 
   return (
     <div className="panel-surface grid gap-4 px-4 py-4 lg:grid-cols-[repeat(4,minmax(0,1fr))]">
@@ -149,12 +147,12 @@ export function FFmpegPanel({
         <Checkbox
           checked={value.thumbnail}
           onChange={(event) => onChange({ thumbnail: event.target.checked })}
-          label="Write thumbnail"
+          label="Save thumbnail"
         />
         <Checkbox
           checked={value.subtitles}
           onChange={(event) => onChange({ subtitles: event.target.checked })}
-          label="Write subtitles"
+          label="Save subtitles"
         />
         <div className="w-32">
           <Dropdown

@@ -24,7 +24,7 @@ use crate::{
     },
     server::AppState,
     services::{ffmpeg, premiere},
-    utils::{file_size, format_clip_time, sanitize_title},
+    utils::{file_size, format_clip_time, hide_windows_console_tokio, sanitize_title},
 };
 
 #[derive(Debug, Deserialize)]
@@ -99,10 +99,8 @@ where
 
 fn build_format_selector(request: &DownloadRequest, settings: &AppSettings) -> String {
     let resolution = request
-        .ffmpeg
         .resolution
         .clone()
-        .or_else(|| request.resolution.clone())
         .unwrap_or_else(|| settings.resolution.clone());
     let ceiling = match resolution.as_str() {
         "highest" => 4320,
@@ -177,7 +175,9 @@ fn extract_video_info(payload: &Value, fallback_url: &str) -> VideoInfo {
 }
 
 pub async fn fetch_video_info(state: &AppState, video_url: &str) -> Result<VideoInfo, String> {
-    let mut child = Command::new(&state.tools.yt_dlp)
+    let mut command = Command::new(&state.tools.yt_dlp);
+    hide_windows_console_tokio(&mut command);
+    let mut child = command
         .args([
             "--encoding",
             "utf-8",
@@ -319,7 +319,9 @@ async fn run_download(
     );
 
     let child_key = format!("{request_id}:yt-dlp");
-    let child = Command::new(&state.tools.yt_dlp)
+    let mut command = Command::new(&state.tools.yt_dlp);
+    hide_windows_console_tokio(&mut command);
+    let child = command
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -480,9 +482,6 @@ pub async fn process_download(
             .clone()
             .unwrap_or_else(|| settings.resolution.clone()),
     );
-    if request.ffmpeg.resolution.is_none() {
-        request.ffmpeg.resolution = request.resolution.clone();
-    }
 
     let download_dir = resolve_download_dir(&request, &settings);
     fs::create_dir_all(&download_dir)
@@ -550,7 +549,7 @@ pub async fn process_download(
             None,
             None,
             None,
-            Some("Importing into Premiere".to_string()),
+            Some("Adding to Premiere".to_string()),
             true,
         );
         if let Err(error) = premiere::import_to_premiere(&state, &final_path).await {

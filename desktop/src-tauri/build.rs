@@ -31,6 +31,53 @@ fn copy_if_exists(source: &Path, destination: &Path) {
     }
 }
 
+fn copy_dir_recursive(source: &Path, destination: &Path) {
+    if !source.exists() {
+        println!(
+            "cargo:warning=Missing resource source: {}",
+            source.display()
+        );
+        return;
+    }
+
+    let _ = fs::create_dir_all(destination);
+
+    let entries = match fs::read_dir(source) {
+        Ok(entries) => entries,
+        Err(error) => {
+            println!(
+                "cargo:warning=Could not read resource source {}: {}",
+                source.display(),
+                error
+            );
+            return;
+        }
+    };
+
+    for entry in entries.flatten() {
+        let source_path = entry.path();
+        let destination_path = destination.join(entry.file_name());
+
+        if source_path.is_dir() {
+            copy_dir_recursive(&source_path, &destination_path);
+            continue;
+        }
+
+        if let Some(parent) = destination_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+
+        if let Err(error) = fs::copy(&source_path, &destination_path) {
+            println!(
+                "cargo:warning=Could not copy resource from {} to {}: {}",
+                source_path.display(),
+                destination_path.display(),
+                error
+            );
+        }
+    }
+}
+
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap_or_default());
     let target = env::var("TARGET").unwrap_or_default();
@@ -61,6 +108,17 @@ fn main() {
     copy_if_exists(
         &ffmpeg_source,
         &binary_dir.join(format!("ffmpeg-{}{}", target, exe_suffix)),
+    );
+
+    let resources_dir = manifest_dir.join("resources");
+    let _ = fs::create_dir_all(&resources_dir);
+    copy_dir_recursive(
+        &repo_root.join("cep-extension"),
+        &resources_dir.join("cep-extension"),
+    );
+    copy_dir_recursive(
+        &repo_root.join("extension").join("dist"),
+        &resources_dir.join("chrome-extension"),
     );
 
     tauri_build::build();

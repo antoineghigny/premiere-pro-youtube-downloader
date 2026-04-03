@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { FolderOpen, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FolderOpen, LoaderCircle, Puzzle, Sparkles, Wand2, X } from 'lucide-react';
 
-import type { DesktopSettings, FFmpegPreset } from '../../api/types';
+import type { DesktopSettings, FFmpegPreset, IntegrationStatus } from '../../api/types';
 import { Button } from '../common/Button';
 import { Checkbox } from '../common/Checkbox';
 import { Dropdown } from '../common/Dropdown';
@@ -15,6 +15,13 @@ type SettingsModalProps = {
   onPickFolder: (currentPath: string) => Promise<string | null>;
   onLoadPreset: (presetId: string) => void;
   onDeletePreset: (presetId: string) => Promise<FFmpegPreset[]>;
+  onRevealPath: (path: string) => Promise<void>;
+  integrationStatus: IntegrationStatus | null;
+  integrationLoading: boolean;
+  integrationMessage: string;
+  integrationBusy: 'premiere' | 'browser' | null;
+  onInstallPremiere: () => Promise<void>;
+  onOpenBrowserSetup: () => Promise<void>;
 };
 
 export function SettingsModal({
@@ -25,6 +32,13 @@ export function SettingsModal({
   onPickFolder,
   onLoadPreset,
   onDeletePreset,
+  onRevealPath,
+  integrationStatus,
+  integrationLoading,
+  integrationMessage,
+  integrationBusy,
+  onInstallPremiere,
+  onOpenBrowserSetup,
 }: SettingsModalProps) {
   const [draft, setDraft] = useState(settings);
   const [saving, setSaving] = useState(false);
@@ -36,6 +50,12 @@ export function SettingsModal({
   if (!open) {
     return null;
   }
+
+  const premiereDetected = integrationStatus?.premiereInstalled ?? false;
+  const premiereReady = integrationStatus?.premierePanelInstalled ?? false;
+  const chromeDetected = integrationStatus?.chromeInstalled ?? false;
+  const browserReady = integrationStatus?.browserAddonReady ?? false;
+  const conflicts = integrationStatus?.conflicts ?? [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(2,3,8,0.78)] px-4 py-10 backdrop-blur-md">
@@ -87,7 +107,7 @@ export function SettingsModal({
               </label>
             </div>
             <div className="settings-field">
-              <span>Default download path</span>
+              <span>Default download folder</span>
               <div className="flex gap-3">
                 <input
                   value={draft.downloadPath}
@@ -108,6 +128,22 @@ export function SettingsModal({
                 </Button>
               </div>
             </div>
+            <label className="settings-field">
+              <span>Default destination</span>
+              <Dropdown
+                value={draft.outputTarget}
+                options={[
+                  { value: 'downloadFolder', label: 'Downloads folder' },
+                  { value: 'premiereProject', label: 'Current Premiere project' },
+                ]}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    outputTarget: event.target.value as DesktopSettings['outputTarget'],
+                  }))
+                }
+              />
+            </label>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="settings-field">
                 <span>Theme</span>
@@ -161,8 +197,125 @@ export function SettingsModal({
               <Checkbox
                 checked={draft.defaultImportToPremiere}
                 onChange={(event) => setDraft((current) => ({ ...current, defaultImportToPremiere: event.target.checked }))}
-                label="Auto-import when Premiere and the CEP panel are ready"
+                label="Auto-import when Premiere is ready"
               />
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-white/4 p-4">
+              <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
+                <Sparkles className="h-4 w-4 text-[var(--color-main)]" />
+                Apps & browser
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-white">Premiere Pro</div>
+                      <div className="mt-1 text-sm text-[var(--text-muted)]">
+                        {integrationLoading
+                          ? 'Checking Premiere setup...'
+                          : conflicts.length > 0
+                            ? 'Older Premiere panels were found. Clean them up, then restart Premiere.'
+                            : premiereDetected
+                            ? premiereReady
+                              ? 'Premiere is ready for one-click import.'
+                              : 'Premiere was found. Finish setup to enable imports.'
+                            : 'Premiere was not found on this computer.'}
+                      </div>
+                    </div>
+                    {premiereReady ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Wand2 className="h-5 w-5 text-sky-200" />}
+                  </div>
+                  <Button
+                    className="mt-4 w-full"
+                    variant="secondary"
+                    disabled={integrationLoading || !premiereDetected || integrationBusy !== null}
+                    icon={integrationBusy === 'premiere' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                    onClick={() => {
+                      void onInstallPremiere();
+                    }}
+                  >
+                    {premiereReady ? 'Refresh Premiere setup' : 'Set up Premiere'}
+                  </Button>
+                  {integrationStatus?.cepInstallPath ? (
+                    <Button
+                      className="mt-3 w-full"
+                      variant="ghost"
+                      icon={<FolderOpen className="h-4 w-4" />}
+                      onClick={() => {
+                        void onRevealPath(integrationStatus.cepInstallPath!);
+                      }}
+                    >
+                      Open panel folder
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-white">Chrome extension</div>
+                      <div className="mt-1 text-sm text-[var(--text-muted)]">
+                        {integrationLoading
+                          ? 'Checking browser setup...'
+                          : browserReady
+                            ? 'The extension folder is ready to load in Chrome.'
+                            : chromeDetected
+                              ? 'Prepare the extension folder, then add it in Chrome.'
+                              : 'Prepare the extension folder, then add it in any Chromium browser.'}
+                      </div>
+                    </div>
+                    {browserReady ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Puzzle className="h-5 w-5 text-sky-200" />}
+                  </div>
+                  <Button
+                    className="mt-4 w-full"
+                    variant="secondary"
+                    disabled={integrationLoading || integrationBusy !== null}
+                    icon={integrationBusy === 'browser' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Puzzle className="h-4 w-4" />}
+                    onClick={() => {
+                      void onOpenBrowserSetup();
+                    }}
+                  >
+                    {browserReady ? 'Open extension folder' : 'Prepare browser extension'}
+                  </Button>
+                </div>
+              </div>
+              {conflicts.length > 0 ? (
+                <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-100">
+                    <AlertTriangle className="h-4 w-4" />
+                    Older Premiere panels need cleanup
+                  </div>
+                  <div className="space-y-3">
+                    {conflicts.map((conflict) => (
+                      <div
+                        key={`${conflict.id}:${conflict.path}`}
+                        className="rounded-2xl border border-white/8 bg-black/15 px-3 py-3 text-sm text-[var(--text-muted)]"
+                      >
+                        <div className="font-medium text-white">{conflict.id}</div>
+                        <div className="mt-1 break-all">{conflict.reason}</div>
+                        <div className="mt-1 break-all text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
+                          {conflict.scope} CEP folder
+                        </div>
+                        <div className="mt-1 break-all text-xs text-[var(--text-muted)]">{conflict.path}</div>
+                        <Button
+                          className="mt-3"
+                          variant="ghost"
+                          size="sm"
+                          icon={<FolderOpen className="h-4 w-4" />}
+                          onClick={() => {
+                            void onRevealPath(conflict.path);
+                          }}
+                        >
+                          Open folder
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {integrationMessage ? (
+                <div className="mt-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--text-muted)]">
+                  {integrationMessage}
+                </div>
+              ) : null}
             </div>
           </div>
           <PresetManager

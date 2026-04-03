@@ -1,4 +1,4 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 mod cors;
 mod models;
@@ -110,12 +110,19 @@ fn main() {
         }))
         .invoke_handler(tauri::generate_handler![get_server_port])
         .setup(move |app| {
-            let state = server::AppState::bootstrap()?;
+            let state = server::AppState::bootstrap(app.path().resource_dir().ok())?;
             app.manage(state.clone());
 
             async_runtime::spawn(async move {
                 if let Err(error) = server::serve(state).await {
                     tracing::error!("HTTP server stopped: {}", error);
+                }
+            });
+
+            let integration_state = app.state::<server::AppState>().inner().clone();
+            async_runtime::spawn(async move {
+                if let Err(error) = services::integrations::run_startup_setup(&integration_state) {
+                    tracing::warn!("Could not finish integration setup: {}", error);
                 }
             });
 

@@ -1,16 +1,22 @@
 use std::{
     env, fs,
     path::{Path, PathBuf},
+    process::Command,
 };
 
 use directories::BaseDirs;
 use serde::Serialize;
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
 pub const APP_NAME: &str = "YT2Premiere";
 pub const APP_FINGERPRINT: &str = "YT2Premiere";
 pub const BACKEND_API_VERSION: u8 = 2;
 pub const BACKEND_TRANSPORT: &str = "rust-desktop";
 pub const SERVER_PORT_RANGE: std::ops::RangeInclusive<u16> = 3001..=3010;
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 #[derive(Debug, Clone)]
 pub struct ToolPaths {
@@ -119,6 +125,26 @@ pub fn resolve_tool_paths() -> ToolPaths {
         yt_dlp: resolve_tool_command("yt-dlp", "YT2PP_YTDLP", &ytdlp_candidates),
         ffmpeg: resolve_tool_command("ffmpeg", "YT2PP_FFMPEG", &ffmpeg_candidates),
     }
+}
+
+pub fn hide_windows_console(command: &mut Command) -> &mut Command {
+    #[cfg(target_os = "windows")]
+    {
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    command
+}
+
+pub fn hide_windows_console_tokio(
+    command: &mut tokio::process::Command,
+) -> &mut tokio::process::Command {
+    #[cfg(target_os = "windows")]
+    {
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    command
 }
 
 pub fn app_storage_dir() -> Result<PathBuf, String> {

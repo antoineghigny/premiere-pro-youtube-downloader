@@ -1,6 +1,7 @@
 {
   "name": "yt2premiere-extension",
   "version": "3.0.0",
+  "description": "Chrome add-on for sending video, audio, and clip downloads to YT2Premiere desktop",
   "private": true,
   "scripts": {
     "build": "webpack --mode production",

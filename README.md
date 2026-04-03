@@ -1,18 +1,26 @@
 # YT2Premiere
 
-YT2Premiere is a desktop download manager for `yt-dlp` sources with optional Adobe Premiere Pro integration.
+Open-source video downloader for desktop and Chrome, with optional Adobe Premiere Pro import.
 
-It combines a Tauri desktop app, a Chrome extension, and a Premiere CEP bridge so you can start downloads from the app or the browser and optionally import finished files into Premiere.
+YT2Premiere lets you download video, audio, and clips from `yt-dlp` compatible sites, manage everything in a desktop queue, trigger downloads from Chrome, and send finished media to Premiere when you need it.
 
 ## Features
 
-- Download from `yt-dlp` compatible sites
+- Open-source desktop downloader for `yt-dlp` compatible sites
+- Download full videos, audio-only exports, or short clips
 - Queue management with history and retry support
 - FFmpeg output presets, codecs, resolution, audio export, and post-processing
 - Chrome extension that sends downloads to the local desktop app
 - Optional Adobe Premiere Pro import workflow
 - Single-instance desktop app with tray mode and background mode
 - Rust backend embedded in the desktop app
+
+## Use cases
+
+- Save online videos locally for viewing, archiving, or editing
+- Extract audio tracks for podcasts, music references, or sound design
+- Cut short clips before export instead of downloading the whole timeline manually
+- Push finished files into Premiere when your workflow needs it
 
 ## Components
 

@@ -12,7 +12,7 @@ use tokio::{
 use crate::{
     models::download::{DownloadRequest, DownloadStage, DownloadType},
     server::AppState,
-    utils::unique_output_path,
+    utils::{hide_windows_console_tokio, unique_output_path},
 };
 
 fn is_audio_extension(extension: &str) -> bool {
@@ -173,10 +173,8 @@ fn build_ffmpeg_args(source: &Path, destination: &Path, request: &DownloadReques
             args.push(frame_rate.to_string());
         }
 
-        let chosen_video_codec = resolve_video_codec(
-            request,
-            requested_height.is_some() || frame_rate.is_some(),
-        );
+        let chosen_video_codec =
+            resolve_video_codec(request, requested_height.is_some() || frame_rate.is_some());
         args.push("-c:v".to_string());
         args.push(chosen_video_codec.to_string());
 
@@ -288,6 +286,7 @@ async fn run_ffmpeg(
     request_id: &str,
 ) -> Result<(), String> {
     let mut command = Command::new(&state.tools.ffmpeg);
+    hide_windows_console_tokio(&mut command);
     command
         .args(args)
         .stdout(Stdio::piped())
@@ -296,19 +295,19 @@ async fn run_ffmpeg(
     let child_key = format!("{request_id}:ffmpeg");
     let child = command
         .spawn()
-        .map_err(|error| format!("Could not start FFmpeg: {}", error))?;
+        .map_err(|error| format!("Could not start file preparation: {}", error))?;
 
     state.register_child_process(child_key.clone(), child);
     let child_handle = state
         .child_process(&child_key)
-        .ok_or_else(|| "Could not track the FFmpeg process".to_string())?;
+        .ok_or_else(|| "Could not follow file preparation".to_string())?;
 
     let stdout = child_handle
         .lock()
         .await
         .stdout
         .take()
-        .ok_or_else(|| "Could not capture FFmpeg stdout".to_string())?;
+        .ok_or_else(|| "Could not capture file preparation progress".to_string())?;
     let mut stdout_reader = BufReader::new(stdout).lines();
 
     let stderr = child_handle
@@ -316,21 +315,21 @@ async fn run_ffmpeg(
         .await
         .stderr
         .take()
-        .ok_or_else(|| "Could not capture FFmpeg stderr".to_string())?;
+        .ok_or_else(|| "Could not capture file preparation details".to_string())?;
     let stderr_task = tokio::spawn(async move {
         let mut stderr_output = String::new();
         let mut stderr_reader = BufReader::new(stderr);
         stderr_reader
             .read_to_string(&mut stderr_output)
             .await
-            .map_err(|error| format!("Could not read FFmpeg stderr: {}", error))?;
+            .map_err(|error| format!("Could not read file preparation details: {}", error))?;
         Ok::<String, String>(stderr_output)
     });
 
     while let Some(line) = stdout_reader
         .next_line()
         .await
-        .map_err(|error| format!("Could not read FFmpeg progress: {}", error))?
+        .map_err(|error| format!("Could not read file preparation progress: {}", error))?
     {
         if let Some(duration_seconds) = duration_seconds {
             if let Some(raw_out_time) = line.strip_prefix("out_time_ms=") {
@@ -342,7 +341,7 @@ async fn run_ffmpeg(
                     Some(format!("{:.1}%", percentage.clamp(0.0, 99.5))),
                     None,
                     None,
-                    Some("Processing with FFmpeg".to_string()),
+                    Some("Finalizing file".to_string()),
                     false,
                 );
             }
@@ -354,15 +353,18 @@ async fn run_ffmpeg(
         .await
         .wait()
         .await
-        .map_err(|error| format!("Could not wait for FFmpeg: {}", error))?;
+        .map_err(|error| format!("Could not finish file preparation: {}", error))?;
     state.release_child_process(&child_key);
-    let stderr_output = stderr_task
-        .await
-        .map_err(|error| format!("Could not join FFmpeg stderr reader: {}", error))??;
+    let stderr_output = stderr_task.await.map_err(|error| {
+        format!(
+            "Could not finish reading file preparation details: {}",
+            error
+        )
+    })??;
 
     if !status.success() {
         return Err(if stderr_output.trim().is_empty() {
-            "FFmpeg failed while processing the downloaded media".to_string()
+            "Could not finish preparing the downloaded file".to_string()
         } else {
             stderr_output.trim().to_string()
         });
@@ -374,7 +376,7 @@ async fn run_ffmpeg(
         Some("100.0%".to_string()),
         None,
         None,
-        Some("Processing complete".to_string()),
+        Some("File ready".to_string()),
         false,
     );
 

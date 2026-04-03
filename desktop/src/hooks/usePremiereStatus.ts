@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react';
 
 import { getPremiereStatus } from '../api/client';
+import type { PremiereStatusResponse } from '../api/types';
 
 export function usePremiereStatus() {
-  const [running, setRunning] = useState(false);
-  const [cepRegistered, setCepRegistered] = useState(false);
+  const [status, setStatus] = useState<PremiereStatusResponse>({
+    running: false,
+    cepRegistered: false,
+    projectOpen: false,
+    projectSaved: false,
+    projectName: undefined,
+    projectPath: undefined,
+    projectFolder: undefined,
+    canImport: false,
+    reason: 'Premiere is not running',
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -14,13 +24,21 @@ export function usePremiereStatus() {
       try {
         const response = await getPremiereStatus();
         if (isMounted) {
-          setRunning(Boolean(response.running));
-          setCepRegistered(Boolean(response.cepRegistered));
+          setStatus(response);
         }
       } catch {
         if (isMounted) {
-          setRunning(false);
-          setCepRegistered(false);
+          setStatus({
+            running: false,
+            cepRegistered: false,
+            projectOpen: false,
+            projectSaved: false,
+            projectName: undefined,
+            projectPath: undefined,
+            projectFolder: undefined,
+            canImport: false,
+            reason: 'Premiere is not running',
+          });
         }
       } finally {
         if (isMounted) {
@@ -41,8 +59,7 @@ export function usePremiereStatus() {
   }, []);
 
   return {
-    running,
-    cepRegistered,
+    ...status,
     loading,
   };
 }

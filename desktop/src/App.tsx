@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { getBackendHealth, pickFolder } from './api/client';
+import {
+  getBackendHealth,
+  getIntegrationStatus,
+  installPremiereIntegration,
+  openBrowserSetup,
+  pickFolder,
+  revealFile,
+} from './api/client';
 import {
   DEFAULT_FFMPEG_OPTIONS,
   type DesktopSettings,
   type FFmpegOptions,
   type FFmpegPreset,
+  type IntegrationStatus,
 } from './api/types';
 import { ClipPanel } from './components/download/ClipPanel';
 import { DownloadGrid } from './components/download/DownloadGrid';
@@ -29,22 +37,26 @@ function buildPresetName(options: FFmpegOptions) {
 
 export default function App() {
   const { settings, setSettings, persistSettings } = useSettings();
-  const { running: premiereRunning, cepRegistered } = usePremiereStatus();
+  const premiereStatus = usePremiereStatus();
   const downloads = useDownloads(settings);
-  const premiereReady = premiereRunning && cepRegistered;
+  const premiereReady = premiereStatus.canImport;
 
   const [backendConnected, setBackendConnected] = useState(false);
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
   const [folder, setFolder] = useState('');
   const [quality, setQuality] = useState(settings.resolution);
+  const [outputTarget, setOutputTarget] = useState(settings.outputTarget);
   const [ffmpegOpen, setFFmpegOpen] = useState(false);
   const [clipOpen, setClipOpen] = useState(false);
   const [clipStart, setClipStart] = useState('00:00:00.000');
   const [clipEnd, setClipEnd] = useState('00:00:30.000');
+  const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatus | null>(null);
+  const [integrationLoading, setIntegrationLoading] = useState(false);
+  const [integrationBusy, setIntegrationBusy] = useState<'premiere' | 'browser' | null>(null);
+  const [integrationMessage, setIntegrationMessage] = useState('');
   const [ffmpegOptions, setFFmpegOptions] = useState<FFmpegOptions>({
     ...DEFAULT_FFMPEG_OPTIONS,
-    resolution: settings.resolution,
     importToPremiere: settings.defaultImportToPremiere && premiereReady,
   });
 
@@ -53,12 +65,12 @@ export default function App() {
   useEffect(() => {
     setFolder(settings.downloadPath);
     setQuality(settings.resolution);
+    setOutputTarget(settings.outputTarget);
     setFFmpegOptions((current) => ({
       ...current,
-      resolution: settings.resolution,
       importToPremiere: settings.defaultImportToPremiere && premiereReady,
     }));
-  }, [premiereReady, settings.defaultImportToPremiere, settings.downloadPath, settings.resolution]);
+  }, [premiereReady, settings.defaultImportToPremiere, settings.downloadPath, settings.outputTarget]);
 
   useEffect(() => {
     let isMounted = true;
@@ -81,6 +93,34 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncIntegrations = async () => {
+      setIntegrationLoading(true);
+      try {
+        const status = await getIntegrationStatus();
+        if (!cancelled) {
+          setIntegrationStatus(status);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[YT2PP] Could not load integration status:', error);
+        }
+      } finally {
+        if (!cancelled) {
+          setIntegrationLoading(false);
+        }
+      }
+    };
+
+    void syncIntegrations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const queueSummary = useMemo(() => buildQueueStatusSummary(downloads.allItems), [downloads.allItems]);
 
   const handlePickFolder = async () => {
@@ -90,7 +130,7 @@ export default function App() {
     }
   };
 
-  const handleQueueDownload = () => {
+  const handleQueueDownload = async () => {
     const normalizedUrl = url.trim();
     if (!normalizedUrl) {
       return;
@@ -111,13 +151,32 @@ export default function App() {
     const outputFormat = ffmpegOptions.outputFormat.toLowerCase();
     const audioFormats = new Set(['wav', 'mp3', 'flac', 'aac', 'opus']);
     const downloadType = clipOpen ? 'clip' : audioFormats.has(outputFormat) ? 'audio' : 'full';
+    let resolvedOutputTarget = outputTarget;
+    let resolvedDownloadPath = folder || settings.downloadPath;
+
+    if (resolvedOutputTarget === 'premiereProject') {
+      if (!premiereStatus.running || !premiereStatus.cepRegistered || !premiereStatus.projectOpen) {
+        setUrlError(premiereStatus.reason);
+        return;
+      }
+
+      if (!premiereStatus.projectSaved) {
+        const selected = await pickFolder(resolvedDownloadPath);
+        if (!selected) {
+          return;
+        }
+        resolvedDownloadPath = selected;
+        resolvedOutputTarget = 'downloadFolder';
+      }
+    }
 
     setUrlError('');
     downloads.queueDownload(
       {
         videoUrl: normalizedUrl,
         downloadType,
-        downloadPath: folder || settings.downloadPath,
+        downloadPath: resolvedDownloadPath,
+        outputTarget: resolvedOutputTarget,
         resolution: quality,
         videoOnly: settings.videoOnly,
         importToPremiere: ffmpegOptions.importToPremiere && premiereReady,
@@ -162,13 +221,70 @@ export default function App() {
     return saved.ffmpegPresets;
   };
 
+  const handleInstallPremiere = async () => {
+    setIntegrationBusy('premiere');
+    setIntegrationMessage('');
+    try {
+      const result = await installPremiereIntegration();
+      setIntegrationStatus(result.status);
+      setIntegrationMessage(result.message);
+    } catch (error) {
+      setIntegrationMessage(error instanceof Error ? error.message : 'Could not prepare Premiere');
+    } finally {
+      setIntegrationBusy(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!downloads.settingsOpen) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      setIntegrationLoading(true);
+      try {
+        const status = await getIntegrationStatus();
+        if (!cancelled) {
+          setIntegrationStatus(status);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[YT2PP] Could not refresh integration status:', error);
+        }
+      } finally {
+        if (!cancelled) {
+          setIntegrationLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [downloads.settingsOpen]);
+
+  const handleOpenBrowserSetup = async () => {
+    setIntegrationBusy('browser');
+    setIntegrationMessage('');
+    try {
+      const result = await openBrowserSetup();
+      setIntegrationStatus(result.status);
+      setIntegrationMessage(result.message);
+    } catch (error) {
+      setIntegrationMessage(error instanceof Error ? error.message : 'Could not prepare the browser extension');
+    } finally {
+      setIntegrationBusy(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#2a1b5f_0%,rgba(12,13,27,0.98)_36%,#06070e_100%)] px-4 py-4 text-white md:px-6">
       <div className="mx-auto flex h-[calc(100vh-2rem)] max-w-[1680px] flex-col gap-4">
         <TitleBar
           backendConnected={backendConnected}
-          premiereRunning={premiereRunning}
-          cepRegistered={cepRegistered}
+          premiereStatus={premiereStatus}
           onOpenSettings={() => downloads.setSettingsOpen(true)}
         />
         <MenuBar
@@ -187,6 +303,7 @@ export default function App() {
           infoLoading={infoLoading}
           infoError={urlError || infoError}
           quality={quality}
+          outputTarget={outputTarget}
           ffmpegOpen={ffmpegOpen}
           clipOpen={clipOpen}
           onUrlChange={(nextValue) => {
@@ -196,6 +313,7 @@ export default function App() {
             }
           }}
           onQualityChange={setQuality}
+          onOutputTargetChange={setOutputTarget}
           onToggleFFmpeg={() => setFFmpegOpen((current) => !current)}
           onToggleClip={() => setClipOpen((current) => !current)}
           onPickFolder={() => {
@@ -207,8 +325,7 @@ export default function App() {
           open={ffmpegOpen}
           value={ffmpegOptions}
           presets={settings.ffmpegPresets}
-          premiereRunning={premiereRunning}
-          cepRegistered={cepRegistered}
+          premiereStatus={premiereStatus}
           onChange={(patch) => setFFmpegOptions((current) => ({ ...current, ...patch }))}
           onSavePreset={() => {
             void handleSavePreset();
@@ -270,7 +387,10 @@ export default function App() {
       <SettingsModal
         open={downloads.settingsOpen}
         settings={settings}
-        onClose={() => downloads.setSettingsOpen(false)}
+        onClose={() => {
+          downloads.setSettingsOpen(false);
+          setIntegrationMessage('');
+        }}
         onSave={async (nextSettings) => {
           const saved = await persistSettings(nextSettings);
           setSettings(saved);
@@ -283,6 +403,13 @@ export default function App() {
           }
         }}
         onDeletePreset={handleDeletePreset}
+        onRevealPath={revealFile}
+        integrationStatus={integrationStatus}
+        integrationLoading={integrationLoading}
+        integrationMessage={integrationMessage}
+        integrationBusy={integrationBusy}
+        onInstallPremiere={handleInstallPremiere}
+        onOpenBrowserSetup={handleOpenBrowserSetup}
       />
     </div>
   );

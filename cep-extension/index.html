@@ -1,131 +1,319 @@
 <!doctype html>
 <html>
-    <head>
-        <meta charset="utf-8">
-        <script src="./lib/CSInterface.js"></script>
-        <script src="./app.js"></script>
-        <script type="text/javascript">
-            window.onload = function () {
-                if (window.__yt2ppServerStarted) {
-                    return;
-                }
-                window.__yt2ppServerStarted = true;
+  <head>
+    <meta charset="utf-8" />
+    <title>YT2Premiere</title>
+    <style>
+      :root {
+        --host-bg: #232323;
+        --host-surface: #2c2c2c;
+        --host-surface-2: #333333;
+        --host-border: rgba(255, 255, 255, 0.08);
+        --host-text: #f4f4f4;
+        --host-muted: #b7b7b7;
+        --accent: #52b7ff;
+        --ok: #46c37b;
+        --warn: #d7a64c;
+        --error: #ef6b75;
+      }
 
-                var csInterface = new CSInterface();
-                var extensionRoot = csInterface.getSystemPath(SystemPath.EXTENSION) + "/";
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: auto;
+        background: var(--host-bg);
+        color: var(--host-text);
+        font: 13px/1.45 "Segoe UI", Arial, sans-serif;
+      }
 
-                var child_process = require('child_process');
-                var path = require('path');
-                var fs = require('fs');
+      * {
+        box-sizing: border-box;
+      }
 
-                /*
-                // Construct the path to the app.js file
-                var appJsPath = path.join(extensionRoot, 'app.js');
+      body {
+        background: var(--host-bg);
+      }
 
-                // Execute the app.js script
-                child_process.exec('node "' + appJsPath + '"', function(err, stdout, stderr) {
-                    if (err) {
-                        console.error('Error running app.js:', err);
-                        return;
-                    }
-                    console.log('app.js stdout:', stdout);
-                    console.error('app.js stderr:', stderr);
-                });
-                */
-                var http = require('http');
+      .shell {
+        min-height: 100%;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
 
-                var hostname = '127.0.0.1';
-                var port = 3000;
-                var activePortFile = path.join(process.env.APPDATA || '', 'YT2Premiere', 'active_port.json');
+      .topbar,
+      .card,
+      .hint,
+      .error-banner,
+      .status-list {
+        border-radius: 10px;
+        border: 1px solid var(--host-border);
+        background: var(--host-surface);
+      }
 
-                function readBackendPort() {
-                    try {
-                        if (!fs.existsSync(activePortFile)) {
-                            return null;
-                        }
-                        var data = JSON.parse(fs.readFileSync(activePortFile, 'utf8'));
-                        var backendPort = Number(data && data.port);
-                        return Number.isInteger(backendPort) ? backendPort : null;
-                    } catch (error) {
-                        console.error('Could not read backend port file:', error);
-                        return null;
-                    }
-                }
+      .topbar,
+      .card,
+      .hint,
+      .error-banner,
+      .status-list {
+        padding: 10px;
+      }
 
-                function registerCepBridge() {
-                    var backendPort = readBackendPort();
-                    if (!backendPort) {
-                        return;
-                    }
+      .subcopy,
+      .section-note,
+      .status-text,
+      .item-meta,
+      .empty {
+        color: var(--host-muted);
+      }
 
-                    var payload = JSON.stringify({ port: port });
-                    var req = http.request({
-                        hostname: '127.0.0.1',
-                        port: backendPort,
-                        path: '/register-cep',
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Content-Length': Buffer.byteLength(payload),
-                            'X-YT2PP-CEP': '1'
-                        },
-                        timeout: 1000
-                    }, function(res) {
-                        res.resume();
-                    });
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
 
-                    req.on('error', function(error) {
-                        console.error('Could not register CEP bridge:', error);
-                    });
+      h1 {
+        font-size: 13px;
+        line-height: 1.2;
+        font-weight: 600;
+      }
 
-                    req.on('timeout', function() {
-                        req.destroy();
-                    });
+      .subcopy {
+        margin-top: 2px;
+        font-size: 11px;
+      }
 
-                    req.write(payload);
-                    req.end();
-                }
+      .status-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--host-muted);
+      }
 
-                function handleConnection(req, res){
-                    res.statusCode = 200;
-                    if(req.method == "GET"){
-                        res.setHeader('Content-Type', 'text/plain');
-                        res.end('Premiere is alive');
-                    }
-                    if(req.method == "POST"){
-                        var data = []
-                        req.on('data', function(chunk){
-                            data.push(chunk)
-                        })
-                        req.on('end', function(){
-                            var parsed_data = JSON.parse(data);
-                            console.log("\nExtendScript code to be executed :")
-                            console.log(parsed_data["to_eval"]);
-                            var cs = new CSInterface;
-                            cs.evalScript(parsed_data["to_eval"], function(extendScript_return){
-                                console.log("ExtendScript sent back :")
-                                console.log(extendScript_return);
-                                res.setHeader('Content-Type', 'text/plain');
-                                res.end(extendScript_return);
-                            });
-                        })
-                    }
-                }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        border: 1px solid var(--host-border);
+        background: var(--host-surface-2);
+        padding: 4px 8px;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
 
-                var server = http.createServer(handleConnection);
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--warn);
+        box-shadow: none;
+      }
 
-                server.listen(port, hostname, function(){
-                    console.log('Server running at http://' + String(hostname) + ':' + String(port));
-                    registerCepBridge();
-                    setInterval(registerCepBridge, 30000);
-                });
-            }
-        </script>
-    </head>
+      .dot.ok {
+        background: var(--ok);
+      }
 
-    <body>
-        <div>
-            <p>Premiere bridge is ready to receive instructions from YT2Premiere.</p>
+      .dot.error {
+        background: var(--error);
+      }
+
+      .status-text {
+        font-size: 11px;
+      }
+
+      .status-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .status-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .section-head h2 {
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .item {
+        border-radius: 8px;
+        border: 1px solid var(--host-border);
+        background: var(--host-surface-2);
+        padding: 8px;
+      }
+
+      .item-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .item-title {
+        font-weight: 600;
+        font-size: 12px;
+      }
+
+      .item-meta {
+        margin-top: 2px;
+        font-size: 11px;
+      }
+
+      .progress-shell {
+        margin-top: 8px;
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .progress-bar {
+        height: 100%;
+        width: 0;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--accent), var(--ok));
+        transform-origin: left center;
+      }
+
+      .progress-bar.indeterminate {
+        width: 100%;
+        background: linear-gradient(90deg, rgba(82, 183, 255, 0.15), rgba(82, 183, 255, 0.85), rgba(82, 183, 255, 0.15));
+        animation: pulse 1.2s linear infinite;
+      }
+
+      .badge {
+        border-radius: 999px;
+        padding: 3px 7px;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--host-muted);
+      }
+
+      .badge-ok {
+        color: #ddfff1;
+        background: rgba(70, 195, 123, 0.18);
+      }
+
+      .badge-error {
+        color: #ffe3e7;
+        background: rgba(239, 107, 117, 0.18);
+      }
+
+      .error-banner {
+        display: none;
+        color: #ffe3e7;
+        border-color: rgba(239, 107, 117, 0.28);
+        background: rgba(239, 107, 117, 0.12);
+      }
+
+      .hint {
+        color: var(--host-muted);
+        font-size: 11px;
+        background: var(--host-surface);
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: translateX(-45%);
+        }
+        100% {
+          transform: translateX(45%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <section class="topbar">
+        <h1>YT2Premiere</h1>
+        <p class="subcopy">Queue and import status</p>
+      </section>
+
+      <section class="status-list">
+        <div class="status-row">
+          <div class="status-title">Bridge</div>
+          <div class="pill" id="bridge-state">
+            <span class="dot"></span>
+            <span>Starting</span>
+          </div>
         </div>
-    </body>
+        <div class="status-text">Panel port: <strong id="bridge-port">--</strong></div>
+
+        <div class="status-row">
+          <div class="status-title">Desktop</div>
+          <div class="pill" id="desktop-state">
+            <span class="dot"></span>
+            <span>Waiting</span>
+          </div>
+        </div>
+        <div class="status-text">Uses the same queue as the desktop app.</div>
+
+        <div class="status-row">
+          <div class="status-title">Project</div>
+          <div class="pill" id="project-state">
+            <span class="dot"></span>
+            <span>Waiting</span>
+          </div>
+        </div>
+        <div class="status-text">Checks import readiness automatically.</div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Current downloads</h2>
+          <div class="section-note">Live queue</div>
+        </div>
+        <div id="queue-list" class="list">
+          <div class="empty">Waiting for the desktop app...</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Recent activity</h2>
+          <div class="section-note">Latest results</div>
+        </div>
+        <div id="history-list" class="list">
+          <div class="empty">Recent results will appear here.</div>
+        </div>
+      </section>
+
+      <div class="error-banner" id="error-banner"></div>
+
+      <div class="hint">
+        If Premiere was just opened or restarted, give the panel a moment to reconnect.
+      </div>
+    </div>
+
+    <script src="./lib/CSInterface.js"></script>
+    <script src="./app.js"></script>
+    <script src="./panel.js"></script>
+  </body>
 </html>

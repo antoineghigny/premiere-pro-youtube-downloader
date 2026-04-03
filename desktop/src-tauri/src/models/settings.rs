@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::ffmpeg_options::FFmpegOptions;
+use super::{download::OutputTarget, ffmpeg_options::FFmpegOptions};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,6 +16,7 @@ pub struct AppSettings {
     pub resolution: String,
     pub download_path: String,
     pub audio_download_path: String,
+    pub output_target: OutputTarget,
     pub ask_audio_path_each_time: bool,
     pub ask_download_path_each_time: bool,
     pub video_only: bool,
@@ -32,6 +33,7 @@ impl Default for AppSettings {
             resolution: "1080".to_string(),
             download_path: String::new(),
             audio_download_path: String::new(),
+            output_target: OutputTarget::DownloadFolder,
             ask_audio_path_each_time: false,
             ask_download_path_each_time: false,
             video_only: false,

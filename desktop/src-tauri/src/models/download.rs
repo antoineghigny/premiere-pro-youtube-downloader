@@ -17,6 +17,19 @@ impl Default for DownloadType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum OutputTarget {
+    DownloadFolder,
+    PremiereProject,
+}
+
+impl Default for OutputTarget {
+    fn default() -> Self {
+        Self::DownloadFolder
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum DownloadStage {
     Preparing,
@@ -34,6 +47,7 @@ pub struct DownloadRequest {
     pub request_id: Option<String>,
     pub video_url: String,
     pub download_type: DownloadType,
+    pub output_target: OutputTarget,
     pub audio_only: bool,
     pub download_mp3: bool,
     pub clip_in: Option<f64>,

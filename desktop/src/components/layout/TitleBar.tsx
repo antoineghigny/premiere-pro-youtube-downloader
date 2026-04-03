@@ -1,20 +1,20 @@
 import { Cable, MonitorPlay, Settings2 } from 'lucide-react';
 
+import type { PremiereStatusResponse } from '../../api/types';
 import { Button } from '../common/Button';
 
 type TitleBarProps = {
   backendConnected: boolean;
-  premiereRunning: boolean;
-  cepRegistered: boolean;
+  premiereStatus: PremiereStatusResponse;
   onOpenSettings: () => void;
 };
 
-export function TitleBar({ backendConnected, premiereRunning, cepRegistered, onOpenSettings }: TitleBarProps) {
-  const premiereLabel = premiereRunning
-    ? cepRegistered
-      ? 'Premiere ready'
-      : 'Premiere running, open CEP panel'
-    : 'Premiere not running';
+export function TitleBar({ backendConnected, premiereStatus, onOpenSettings }: TitleBarProps) {
+  const premiereLabel = premiereStatus.canImport
+    ? premiereStatus.projectSaved
+      ? `${premiereStatus.projectName || 'Premiere'} ready`
+      : 'Import ready'
+    : premiereStatus.reason;
 
   return (
     <div className="panel-surface flex items-center justify-between gap-4 px-5 py-4">
@@ -31,10 +31,10 @@ export function TitleBar({ backendConnected, premiereRunning, cepRegistered, onO
         <div className="status-pill">
           <span className={backendConnected ? 'status-dot status-dot-online' : 'status-dot'} />
           <Cable className="h-4 w-4" />
-          <span>{backendConnected ? 'Backend connected' : 'Backend offline'}</span>
+          <span>{backendConnected ? 'Ready' : 'Offline'}</span>
         </div>
         <div className="status-pill">
-          <span className={premiereRunning && cepRegistered ? 'status-dot status-dot-premiere' : 'status-dot'} />
+          <span className={premiereStatus.canImport ? 'status-dot status-dot-premiere' : 'status-dot'} />
           <span>{premiereLabel}</span>
         </div>
         <Button

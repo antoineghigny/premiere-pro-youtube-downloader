@@ -1,4 +1,5 @@
 use std::{
+    path::PathBuf,
     sync::{
         atomic::{AtomicBool, AtomicU16, Ordering},
         Arc, RwLock,
@@ -27,7 +28,7 @@ use crate::{
     websocket::{self, WsHub},
 };
 
-const CEP_HEARTBEAT_TTL: i64 = 60;
+const CEP_HEARTBEAT_TTL: i64 = 15;
 
 #[derive(Debug)]
 pub struct CepRegistration {
@@ -69,6 +70,13 @@ impl CepRegistration {
 
         Some(port)
     }
+
+    fn clear(&self) {
+        self.port.store(0, Ordering::SeqCst);
+        if let Ok(mut last_heartbeat) = self.last_heartbeat.write() {
+            *last_heartbeat = None;
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -88,6 +96,7 @@ pub struct AppState {
     pub settings: Arc<SettingsService>,
     pub history: Arc<HistoryService>,
     pub tools: ToolPaths,
+    pub resource_dir: Option<PathBuf>,
     pub websocket_hub: WsHub,
     pub downloads: Arc<DashMap<String, ActiveDownloadState>>,
     pub child_processes: Arc<DashMap<String, Arc<Mutex<Child>>>>,
@@ -97,7 +106,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn bootstrap() -> Result<Self, String> {
+    pub fn bootstrap(resource_dir: Option<PathBuf>) -> Result<Self, String> {
         let tools = resolve_tool_paths();
         tracing::info!(
             "Resolved tools: yt-dlp={}, ffmpeg={}",
@@ -109,6 +118,7 @@ impl AppState {
             settings: Arc::new(SettingsService::load()?),
             history: Arc::new(HistoryService::load()?),
             tools,
+            resource_dir,
             websocket_hub: WsHub::new(),
             downloads: Arc::new(DashMap::new()),
             child_processes: Arc::new(DashMap::new()),
@@ -128,6 +138,10 @@ impl AppState {
 
     pub fn active_cep_port(&self) -> Option<u16> {
         self.cep.current_port()
+    }
+
+    pub fn clear_cep_port(&self) {
+        self.cep.clear();
     }
 
     pub fn update_download_state(&self, next: ActiveDownloadState) {
@@ -251,6 +265,7 @@ impl AppState {
                 yt_dlp: "yt-dlp".to_string(),
                 ffmpeg: "ffmpeg".to_string(),
             },
+            resource_dir: None,
             websocket_hub: WsHub::new(),
             downloads: Arc::new(DashMap::new()),
             child_processes: Arc::new(DashMap::new()),
@@ -326,6 +341,19 @@ pub async fn serve(state: AppState) -> Result<(), String> {
         .route(
             "/premiere-status",
             get(routes::premiere::premiere_status).options(routes::options_ok),
+        )
+        .route(
+            "/integrations/status",
+            get(routes::integrations::integration_status).options(routes::options_ok),
+        )
+        .route(
+            "/integrations/install-premiere",
+            axum::routing::post(routes::integrations::install_premiere).options(routes::options_ok),
+        )
+        .route(
+            "/integrations/open-browser-setup",
+            axum::routing::post(routes::integrations::open_browser_setup)
+                .options(routes::options_ok),
         )
         .route(
             "/register-cep",

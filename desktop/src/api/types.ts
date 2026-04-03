@@ -1,4 +1,5 @@
 export type DownloadType = 'full' | 'audio' | 'clip';
+export type OutputTarget = 'downloadFolder' | 'premiereProject';
 
 export type DownloadStage =
   | 'preparing'
@@ -38,6 +39,7 @@ export interface DesktopSettings {
   resolution: string;
   downloadPath: string;
   audioDownloadPath: string;
+  outputTarget: OutputTarget;
   askAudioPathEachTime: boolean;
   askDownloadPathEachTime: boolean;
   videoOnly: boolean;
@@ -50,11 +52,11 @@ export interface DesktopSettings {
 
 export const DEFAULT_FFMPEG_OPTIONS: FFmpegOptions = {
   outputFormat: 'mp4',
-  videoCodec: 'h264',
-  audioCodec: 'aac',
-  resolution: '1080',
+  videoCodec: 'copy',
+  audioCodec: 'copy',
+  resolution: 'original',
   videoBitrate: 'auto',
-  audioBitrate: '192k',
+  audioBitrate: 'auto',
   frameRate: 'original',
   thumbnail: false,
   subtitles: false,
@@ -66,6 +68,7 @@ export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
   resolution: '1080',
   downloadPath: '',
   audioDownloadPath: '',
+  outputTarget: 'downloadFolder',
   askAudioPathEachTime: false,
   askDownloadPathEachTime: false,
   videoOnly: false,
@@ -85,6 +88,7 @@ export interface DownloadRequestPayload {
   clipIn?: number;
   clipOut?: number;
   downloadPath?: string;
+  outputTarget?: OutputTarget;
   videoOnly?: boolean;
   resolution?: string;
   importToPremiere?: boolean;
@@ -124,7 +128,38 @@ export interface HistoryResponse {
 
 export interface PremiereStatusResponse {
   running: boolean;
-  cepRegistered?: boolean;
+  cepRegistered: boolean;
+  projectOpen: boolean;
+  projectSaved: boolean;
+  projectName?: string;
+  projectPath?: string;
+  projectFolder?: string;
+  canImport: boolean;
+  reason: string;
+}
+
+export interface IntegrationConflict {
+  id: string;
+  path: string;
+  scope: 'user' | 'system';
+  reason: string;
+}
+
+export interface IntegrationStatus {
+  premiereInstalled: boolean;
+  premierePanelInstalled: boolean;
+  chromeInstalled: boolean;
+  browserAddonReady: boolean;
+  cepInstallPath?: string;
+  browserAddonPath?: string;
+  conflicts: IntegrationConflict[];
+}
+
+export interface IntegrationActionResponse {
+  success: boolean;
+  message: string;
+  manualStepRequired: boolean;
+  status: IntegrationStatus;
 }
 
 export interface DownloadRequestResponse {

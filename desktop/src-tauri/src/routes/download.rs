@@ -6,12 +6,12 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        download::DownloadRequest,
+        download::{DownloadRequest, OutputTarget},
         history::{DownloadStatus, HistoryEntry},
         settings::AppSettings,
     },
     server::AppState,
-    services::downloader,
+    services::{downloader, premiere},
 };
 
 fn normalize_text(value: Option<&str>) -> String {
@@ -24,6 +24,13 @@ fn normalize_bool(value: Option<bool>) -> bool {
 
 fn normalize_clip_time(value: Option<f64>) -> Option<i64> {
     value.map(|seconds| (seconds * 1000.0).round() as i64)
+}
+
+fn normalize_output_target(value: &OutputTarget) -> &'static str {
+    match value {
+        OutputTarget::DownloadFolder => "download-folder",
+        OutputTarget::PremiereProject => "premiere-project",
+    }
 }
 
 fn normalize_recorded_download_dir(
@@ -85,6 +92,7 @@ fn request_signature(
         normalize_text(request.ffmpeg.subtitle_lang.as_deref()),
         normalize_bool(request.import_to_premiere).to_string(),
         normalize_bool(request.ffmpeg.import_to_premiere).to_string(),
+        normalize_output_target(&request.output_target).to_string(),
     ]
     .join("|")
 }
@@ -98,12 +106,17 @@ async fn find_duplicate_download(
     let history = state.history.list_page(1, 500).await;
 
     history.items.into_iter().find(|entry| {
-        if matches!(entry.status, DownloadStatus::Failed | DownloadStatus::Interrupted) {
+        if matches!(
+            entry.status,
+            DownloadStatus::Failed | DownloadStatus::Interrupted
+        ) {
             return false;
         }
 
         if matches!(entry.status, DownloadStatus::Complete) {
-            if entry.output_path.trim().is_empty() || !std::path::Path::new(&entry.output_path).exists() {
+            if entry.output_path.trim().is_empty()
+                || !std::path::Path::new(&entry.output_path).exists()
+            {
                 return false;
             }
         }
@@ -148,7 +161,27 @@ pub async fn handle_video_url(
     }
     request.video_url = video_url.clone();
     let settings = state.settings.get().await;
-    let resolved_download_dir = downloader::resolve_download_dir(&request, &settings);
+    let resolved_download_dir = match request.output_target {
+        OutputTarget::PremiereProject => match premiere::resolve_project_output_dir(&state).await {
+            Ok(path) => path,
+            Err(premiere::ProjectFolderError::UnsavedProject) => {
+                return Err((
+                    axum::http::StatusCode::CONFLICT,
+                    Json(json!({
+                        "error": premiere::ProjectFolderError::UnsavedProject.user_message(),
+                        "folderSelectionRequired": true,
+                    })),
+                ));
+            }
+            Err(error) => {
+                return Err((
+                    axum::http::StatusCode::BAD_REQUEST,
+                    Json(json!({ "error": error.user_message() })),
+                ));
+            }
+        },
+        OutputTarget::DownloadFolder => downloader::resolve_download_dir(&request, &settings),
+    };
     request.download_path = Some(resolved_download_dir.to_string_lossy().to_string());
 
     if let Some(existing) = find_duplicate_download(&state, &request, &settings).await {
@@ -164,6 +197,7 @@ pub async fn handle_video_url(
                 "duplicate": true,
                 "requestId": existing.request_id,
                 "status": existing.status,
+                "outputPath": existing.output_path,
             })),
         ));
     }
@@ -438,9 +472,6 @@ mod tests {
 
         let result = handle_video_url(State(state), Json(request)).await;
 
-        assert!(matches!(
-            result,
-            Err((axum::http::StatusCode::CONFLICT, _))
-        ));
+        assert!(matches!(result, Err((axum::http::StatusCode::CONFLICT, _))));
     }
 }

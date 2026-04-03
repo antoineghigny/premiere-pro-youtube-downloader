@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useEffectEvent, useMemo } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef } from 'react';
 
 import {
   ApiError,
@@ -26,6 +26,7 @@ import { useSocket } from './useSocket';
 type QueueDownloadInput = Omit<DownloadRequestPayload, 'requestId'>;
 
 export function useDownloads(settings: DesktopSettings) {
+  const pendingStartsRef = useRef<Set<string>>(new Set());
   const {
     items,
     viewMode,
@@ -85,15 +86,17 @@ export function useDownloads(settings: DesktopSettings) {
     });
   });
 
+  const syncHistorySnapshot = useEffectEvent(async (pageSize = 100) => {
+    const response = await getHistory(1, pageSize);
+    hydrateHistory(response.items);
+  });
+
   useEffect(() => {
     let cancelled = false;
 
     const syncHistory = async () => {
       try {
-        const response = await getHistory(1, 100);
-        if (!cancelled) {
-          hydrateHistory(response.items);
-        }
+        await syncHistorySnapshot(100);
       } catch (error) {
         if (!cancelled) {
           console.error('[YT2PP] Could not load history:', error);
@@ -199,44 +202,45 @@ export function useDownloads(settings: DesktopSettings) {
       return;
     }
 
-    const nextItem = items.find((item) => item.status === 'queued');
+    const nextItem = items.find((item) => (
+      item.status === 'queued' && !pendingStartsRef.current.has(item.requestId)
+    ));
     if (!nextItem) {
       return;
     }
 
-    let cancelled = false;
+    pendingStartsRef.current.add(nextItem.requestId);
 
     void (async () => {
       markStarting(nextItem.requestId);
       socketClient.subscribe(nextItem.requestId);
       try {
         const response = await startDownload(nextItem.request);
-        if (cancelled) {
-          return;
-        }
         if (!response.success) {
           markFailed(nextItem.requestId, response.error ?? 'Could not start the download');
           socketClient.unsubscribe(nextItem.requestId);
           return;
         }
       } catch (error) {
-        if (!cancelled) {
-          if (error instanceof ApiError && error.duplicate) {
-            removeDownload(nextItem.requestId);
-            socketClient.unsubscribe(nextItem.requestId);
-            return;
+        if (error instanceof ApiError && error.duplicate) {
+          try {
+            await syncHistorySnapshot(500);
+          } catch (historyError) {
+            console.error('[YT2PP] Could not resync duplicate history:', historyError);
           }
 
-          markFailed(nextItem.requestId, error instanceof Error ? error.message : 'Could not start the download');
           socketClient.unsubscribe(nextItem.requestId);
+          removeDownload(nextItem.requestId);
+          return;
         }
+
+        markFailed(nextItem.requestId, error instanceof Error ? error.message : 'Could not start the download');
+        socketClient.unsubscribe(nextItem.requestId);
+      } finally {
+        pendingStartsRef.current.delete(nextItem.requestId);
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [items, markFailed, markStarting, removeDownload, settings.concurrentDownloads]);
+  }, [items, markFailed, markStarting, removeDownload, settings.concurrentDownloads, syncHistorySnapshot]);
 
   const queueDownload = useCallback(
     (request: QueueDownloadInput, preview?: VideoInfo | null) => {

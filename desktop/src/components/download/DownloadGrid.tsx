@@ -14,7 +14,7 @@ export function DownloadGrid({ items, onRetry, onRemove, onReveal }: DownloadGri
     return (
       <EmptyState
         title="Nothing queued yet"
-        description="Queue downloads from the URL bar to fill the board with live thumbnails, FFmpeg progress, and Premiere import state."
+        description="Queue downloads from the URL bar to fill the board with live thumbnails, progress, and Premiere status."
       />
     );
   }

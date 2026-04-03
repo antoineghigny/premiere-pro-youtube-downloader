@@ -1,6 +1,6 @@
 import { Download, FolderOpen, Scissors, SlidersHorizontal, Sparkles } from 'lucide-react';
 
-import type { VideoInfo } from '../../api/types';
+import type { OutputTarget, VideoInfo } from '../../api/types';
 import { Button } from '../common/Button';
 import { Dropdown } from '../common/Dropdown';
 
@@ -10,10 +10,12 @@ type UrlBarProps = {
   infoLoading: boolean;
   infoError: string;
   quality: string;
+  outputTarget: OutputTarget;
   ffmpegOpen: boolean;
   clipOpen: boolean;
   onUrlChange: (value: string) => void;
   onQualityChange: (value: string) => void;
+  onOutputTargetChange: (value: OutputTarget) => void;
   onToggleFFmpeg: () => void;
   onToggleClip: () => void;
   onPickFolder: () => void;
@@ -26,10 +28,12 @@ export function UrlBar({
   infoLoading,
   infoError,
   quality,
+  outputTarget,
   ffmpegOpen,
   clipOpen,
   onUrlChange,
   onQualityChange,
+  onOutputTargetChange,
   onToggleFFmpeg,
   onToggleClip,
   onPickFolder,
@@ -66,7 +70,7 @@ export function UrlBar({
               type="button"
               onClick={onToggleFFmpeg}
               className={ffmpegOpen ? 'toolbar-chip toolbar-chip-active' : 'toolbar-chip'}
-              title="Toggle FFmpeg options"
+              title="Show export options"
             >
               <SlidersHorizontal className="h-4 w-4" />
             </button>
@@ -80,7 +84,7 @@ export function UrlBar({
             </button>
           </div>
         </div>
-        <div className="flex gap-3 xl:w-[320px]">
+        <div className="flex gap-3 xl:w-[520px]">
           <div className="w-36">
             <Dropdown
               value={quality}
@@ -93,6 +97,17 @@ export function UrlBar({
                 { value: '480', label: '480p' },
               ]}
               onChange={(event) => onQualityChange(event.target.value)}
+              className="h-14"
+            />
+          </div>
+          <div className="w-48">
+            <Dropdown
+              value={outputTarget}
+              options={[
+                { value: 'downloadFolder', label: 'Downloads folder' },
+                { value: 'premiereProject', label: 'Premiere project' },
+              ]}
+              onChange={(event) => onOutputTargetChange(event.target.value as OutputTarget)}
               className="h-14"
             />
           </div>

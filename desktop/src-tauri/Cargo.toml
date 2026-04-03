@@ -7,7 +7,7 @@ build = "build.rs"
 [package.metadata.tauri-winres]
 ProductName = "YT2Premiere"
 OriginalFilename = "YT2Premiere.exe"
-FileDescription = "YT2Premiere desktop application"
+FileDescription = "Open-source desktop video downloader with Chrome and optional Premiere integration"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

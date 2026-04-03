@@ -40,6 +40,16 @@ type ActiveDownload = {
   cleanupTimeoutId: ReturnType<typeof setTimeout> | null;
 };
 
+type BackendStartResponse = {
+  success: boolean;
+  error?: string;
+  duplicate?: boolean;
+  requestId?: string;
+  status?: string;
+  outputPath?: string;
+  folderSelectionRequired?: boolean;
+};
+
 const activeDownloads = new Map<string, ActiveDownload>();
 const DOWNLOAD_STATUS_RETENTION_MS = 60000;
 const LEGACY_SETTING_KEYS = ['secondsBefore', 'secondsAfter', 'audioOnly', 'downloadMP3', 'clipAudioOnly'];
@@ -373,6 +383,29 @@ async function pickFolder(title: string, initialPath = '') {
   }
 }
 
+async function submitDownloadRequest(requestId: string, request: DownloadRequest): Promise<BackendStartResponse> {
+  const response = await postJson('/handle-video-url', {
+    ...request,
+    requestId,
+    downloadMP3: request.audioOnly ?? request.downloadMP3 ?? false,
+  });
+
+  if (response.ok) {
+    return { success: true, requestId };
+  }
+
+  const data = await response.json().catch(() => ({ error: 'Unknown error' } as BackendStartResponse));
+  return {
+    success: false,
+    error: data.error ?? 'Request failed.',
+    duplicate: Boolean(data.duplicate),
+    requestId: typeof data.requestId === 'string' ? data.requestId : undefined,
+    status: typeof data.status === 'string' ? data.status : undefined,
+    outputPath: typeof data.outputPath === 'string' ? data.outputPath : undefined,
+    folderSelectionRequired: Boolean(data.folderSelectionRequired),
+  };
+}
+
 async function startDownload(sender: chrome.runtime.MessageSender, request: DownloadRequest) {
   const tabId = sender.tab?.id;
   if (tabId === undefined) {
@@ -387,16 +420,39 @@ async function startDownload(sender: chrome.runtime.MessageSender, request: Down
   });
 
   try {
-    const response = await postJson('/handle-video-url', {
-      ...request,
-      requestId,
-      downloadMP3: request.audioOnly ?? request.downloadMP3 ?? false,
-    });
+    let response = await submitDownloadRequest(requestId, request);
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({ error: 'Unknown error' }));
+    if (!response.success && response.folderSelectionRequired) {
+      const pickedFolder = await pickFolder(
+        'Choose a folder for this download',
+        String(request.downloadPath ?? '')
+      );
+      if (pickedFolder.cancelled) {
+        stopTrackingDownload(requestId);
+        return { success: false, cancelled: true };
+      }
+      if (!pickedFolder.success) {
+        stopTrackingDownload(requestId);
+        return { success: false, error: pickedFolder.error ?? 'Could not choose a folder' };
+      }
+
+      response = await submitDownloadRequest(requestId, {
+        ...request,
+        downloadPath: pickedFolder.path ?? '',
+        outputTarget: 'downloadFolder',
+      });
+    }
+
+    if (!response.success) {
       stopTrackingDownload(requestId);
-      return { success: false, error: data.error ?? 'Request failed.' };
+      return {
+        success: false,
+        error: response.error ?? 'Request failed.',
+        duplicate: response.duplicate,
+        requestId: response.requestId,
+        status: response.status,
+        outputPath: response.outputPath,
+      };
     }
 
     void resyncActiveDownloads();

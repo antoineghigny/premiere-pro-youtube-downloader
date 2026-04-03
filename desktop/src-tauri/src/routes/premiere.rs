@@ -19,10 +19,8 @@ pub struct RegisterCepRequest {
 }
 
 pub async fn premiere_status(State(state): State<AppState>) -> Json<serde_json::Value> {
-    Json(json!({
-        "running": premiere::is_premiere_running(),
-        "cepRegistered": state.active_cep_port().is_some()
-    }))
+    let status = premiere::premiere_status(&state).await;
+    Json(json!(status))
 }
 
 pub async fn register_cep(

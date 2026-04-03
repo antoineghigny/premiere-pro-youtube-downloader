@@ -7,6 +7,8 @@ import {
   type DownloadRequestPayload,
   type DownloadRequestResponse,
   type HistoryResponse,
+  type IntegrationActionResponse,
+  type IntegrationStatus,
   type PremiereStatusResponse,
   type VideoInfo,
 } from './types';
@@ -23,22 +25,28 @@ let pendingBackendPort: Promise<number> | null = null;
 
 export class ApiError extends Error {
   duplicate = false;
+  folderSelectionRequired = false;
   requestId?: string;
   status?: string;
+  outputPath?: string;
 
   constructor(
     message: string,
     options?: {
       duplicate?: boolean;
+      folderSelectionRequired?: boolean;
       requestId?: string;
       status?: string;
+      outputPath?: string;
     }
   ) {
     super(message);
     this.name = 'ApiError';
     this.duplicate = Boolean(options?.duplicate);
+    this.folderSelectionRequired = Boolean(options?.folderSelectionRequired);
     this.requestId = options?.requestId;
     this.status = options?.status;
+    this.outputPath = options?.outputPath;
   }
 }
 
@@ -130,8 +138,10 @@ async function apiRequest<T>(path: string, init?: RequestInit, allowRetry = true
     const data = await response.json().catch(() => ({ error: response.statusText }));
     throw new ApiError(String(data.error ?? 'Request failed'), {
       duplicate: Boolean(data.duplicate),
+      folderSelectionRequired: Boolean(data.folderSelectionRequired),
       requestId: typeof data.requestId === 'string' ? data.requestId : undefined,
       status: typeof data.status === 'string' ? data.status : undefined,
+      outputPath: typeof data.outputPath === 'string' ? data.outputPath : undefined,
     });
   }
 
@@ -191,6 +201,27 @@ export async function getVideoInfo(videoUrl: string): Promise<VideoInfo> {
 export async function getPremiereStatus(): Promise<PremiereStatusResponse> {
   return apiRequest<PremiereStatusResponse>('/premiere-status', {
     method: 'GET',
+  });
+}
+
+export async function getIntegrationStatus(): Promise<IntegrationStatus> {
+  const response = await apiRequest<{ status: IntegrationStatus }>('/integrations/status', {
+    method: 'GET',
+  });
+  return response.status;
+}
+
+export async function installPremiereIntegration(): Promise<IntegrationActionResponse> {
+  return apiRequest<IntegrationActionResponse>('/integrations/install-premiere', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export async function openBrowserSetup(): Promise<IntegrationActionResponse> {
+  return apiRequest<IntegrationActionResponse>('/integrations/open-browser-setup', {
+    method: 'POST',
+    body: JSON.stringify({}),
   });
 }
 

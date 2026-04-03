@@ -1,7 +1,10 @@
+export type OutputTarget = 'downloadFolder' | 'premiereProject';
+
 export interface ExtensionSettings {
   resolution: string;
   downloadPath: string;
   audioDownloadPath: string;
+  outputTarget: OutputTarget;
   askAudioPathEachTime: boolean;
   askDownloadPathEachTime: boolean;
   videoOnly: boolean;
@@ -11,6 +14,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   resolution: '1080',
   downloadPath: '',
   audioDownloadPath: '',
+  outputTarget: 'downloadFolder',
   askAudioPathEachTime: false,
   askDownloadPathEachTime: false,
   videoOnly: false,
@@ -25,6 +29,7 @@ export interface DownloadRequest {
   clipIn?: number;
   clipOut?: number;
   downloadPath?: string;
+  outputTarget?: OutputTarget;
   videoOnly?: boolean;
   resolution?: string;
 }
