@@ -1,32 +1,89 @@
 # YT2Premiere
 
-Open-source video downloader for desktop and Chrome, with optional Adobe Premiere Pro import.
+Open-source video downloader with a desktop app, a Chrome extension, and optional Adobe Premiere Pro import.
 
-YT2Premiere lets you download video, audio, and clips from `yt-dlp` compatible sites, manage everything in a desktop queue, trigger downloads from Chrome, and send finished media to Premiere when you need it.
+YT2Premiere gives you one local queue for downloads, clips, audio exports, and Premiere handoff. Use it as a standalone desktop downloader, queue jobs directly from Chrome, or send finished media into Premiere when you need it.
 
-## Features
+Use it with or without Premiere Pro.
 
-- Open-source desktop downloader for `yt-dlp` compatible sites
-- Download full videos, audio-only exports, or short clips
-- Queue management with history and retry support
-- FFmpeg output presets, codecs, resolution, audio export, and post-processing
-- Chrome extension that sends downloads to the local desktop app
-- Optional Adobe Premiere Pro import workflow
-- Single-instance desktop app with tray mode and background mode
-- Rust backend embedded in the desktop app
+## Screenshots
 
-## Use cases
+### Desktop queue
 
-- Save online videos locally for viewing, archiving, or editing
-- Extract audio tracks for podcasts, music references, or sound design
-- Cut short clips before export instead of downloading the whole timeline manually
-- Push finished files into Premiere when your workflow needs it
+![YT2Premiere desktop queue](./docs/images/desktop-overview.png)
 
-## Components
+### Chrome controls and desktop settings
 
-- `desktop/` - Tauri desktop app and embedded Rust backend
-- `extension/` - Chrome extension
-- `cep-extension/` - Adobe Premiere Pro CEP bridge
+<p align="left">
+  <img src="./docs/images/chrome-extension-controls.png" alt="YT2Premiere Chrome extension controls" width="280" />
+  <img src="./docs/images/settings-modal.png" alt="YT2Premiere desktop settings" width="560" />
+</p>
+
+## Why YT2Premiere
+
+- Use it as a standalone downloader or from Chrome
+- Queue downloads directly from Chrome while browsing
+- Download video, audio, or clips from `yt-dlp` supported sites
+- Manage everything in one desktop queue with history, retry, and progress tracking
+- Avoid copy-pasting URLs into a downloader for every job
+- Export only the exact clip you need instead of storing the full source file
+- Optionally auto-import finished files into Adobe Premiere Pro
+- Keep the desktop app running in the background while Chrome and Premiere talk to the same local app
+
+## Common Workflows
+
+### Standalone desktop
+
+1. Paste a URL into the desktop app.
+2. Choose full video, audio, or an exact clip range.
+3. Download only what you need.
+4. Open the file locally or keep it ready for editing later.
+
+### Chrome to desktop
+
+1. Browse in Chrome.
+2. Queue a video, audio export, or clip from the page.
+3. Follow progress in the desktop app.
+4. Open the file locally or send it to Premiere.
+
+## What You Can Do
+
+| Task | Supported |
+| --- | --- |
+| Download full videos | Yes |
+| Download audio-only exports | Yes |
+| Export short clips | Yes |
+| Trigger downloads from Chrome | Yes |
+| Track progress in the desktop app | Yes |
+| Import into Premiere Pro | Optional |
+| Use the app without Premiere Pro | Yes |
+
+## Desktop And Chrome
+
+YT2Premiere works well in both modes:
+
+- use the desktop app when you already have a URL and want a clean local queue
+- use the Chrome extension when you want to grab media without leaving the page
+- send full videos, audio, or clips to the same desktop queue
+- keep the heavy work in the desktop app instead of the browser
+- optionally hand finished media off to Premiere
+
+One of the most useful workflows is clipping only the exact section you need, which keeps your library smaller and avoids downloading more than necessary.
+
+## How It Works
+
+```mermaid
+flowchart LR
+    Browser["Chrome extension"] --> App["YT2Premiere desktop app"]
+    Desktop["Desktop UI"] --> App
+    Premiere["Premiere panel"] --> App
+    App --> YTDLP["yt-dlp"]
+    App --> FFMPEG["FFmpeg"]
+    App --> Files["Local files"]
+    App --> Import["Optional Premiere import"]
+```
+
+The desktop app is the source of truth. Chrome and Premiere are lightweight clients around the same local queue.
 
 ## Install
 
@@ -40,48 +97,47 @@ YT2Premiere lets you download video, audio, and clips from `yt-dlp` compatible s
 
 1. Download and extract `YT2Premiere-chrome-extension.zip`.
 2. Open `chrome://extensions`.
-3. Enable `Developer mode`.
+3. Turn on `Developer mode`.
 4. Click `Load unpacked`.
 5. Select the extracted extension folder.
 
-### Premiere bridge
+### Premiere panel
 
 1. Download and extract `YT2Premiere-cep-extension.zip`.
-2. Copy it to your Adobe CEP extensions directory.
+2. Copy it to `%APPDATA%\\Adobe\\CEP\\extensions\\com.yt2premiere.cep`.
 3. Open Premiere Pro.
 4. Open `Window > Extensions (Legacy) > YT2Premiere`.
 
-On Windows, the CEP target folder is typically:
-
-`%APPDATA%\Adobe\CEP\extensions\com.yt2premiere.cep`
-
-## Usage
+## Quick Start
 
 1. Launch `YT2Premiere`.
-2. Paste a video URL in the desktop app or trigger a download from the Chrome extension.
-3. Adjust output options if needed.
-4. Start the download.
-5. Enable Premiere import only when you want the finished media added to the current project.
+2. Paste a supported media URL into the desktop app or trigger a download from the Chrome extension.
+3. Choose the output you want: full video, audio, or clip.
+4. Start the queue.
+5. Open the finished file locally, or let YT2Premiere add it to Premiere if import is enabled.
 
-## Tech stack
+## Core Features
 
-- Tauri 2
-- Rust + Axum
-- React 19 + Vite
-- Tailwind CSS v4 + shadcn/ui
-- Chrome Extension Manifest V3
-- Adobe CEP
+- Desktop-first queue manager built with Tauri, Rust, and React
+- Download history with retry support
+- Concurrent download control
+- Resolution, codec, audio, and clip options
+- FFmpeg-based finishing and exports
+- Chrome extension for one-click queueing from the browser
+- Premiere Pro bridge for import workflows
+- Single-instance desktop runtime with tray behavior
 
-## Development
+## Run From Source
 
 ### Requirements
 
+- Windows
 - Node.js 22
 - Rust stable
 - Google Chrome
-- Adobe Premiere Pro for import testing
+- Adobe Premiere Pro only if you want to test Premiere import
 
-### Setup
+### Install dependencies
 
 ```bash
 cd extension
@@ -91,24 +147,37 @@ cd ../desktop
 npm ci
 ```
 
-### Run the desktop app
+### Start the desktop app
+
+From the repository root:
 
 ```bash
 npm run dev:desktop
 ```
 
-### Build the extension
+### Build the Chrome extension
 
 ```bash
 cd extension
 npm run build
 ```
 
-### Run the test suite
+### Test Premiere integration in development
 
-```bash
-npm test
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-cep-dev.ps1
 ```
+
+Then open:
+
+`Window > Extensions (Legacy) > YT2Premiere`
+
+## Project Layout
+
+- `desktop/` - Tauri desktop app, React UI, Rust backend
+- `extension/` - Chrome extension source and build output
+- `cep-extension/` - Premiere CEP panel
+- `scripts/` - setup and packaging helpers
 
 ## Documentation
 
@@ -118,11 +187,5 @@ npm test
 ## License
 
 This project is licensed under the Mozilla Public License 2.0.
-
-Why this choice:
-
-- it keeps this codebase open source
-- it lets you build larger commercial products around it later
-- it avoids the fully permissive "anyone can close and resell the whole thing unchanged" downside of MIT
 
 Third-party files and dependencies keep their own licenses where applicable.
