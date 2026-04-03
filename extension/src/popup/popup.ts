@@ -19,6 +19,10 @@ function getDownloadPathInput() {
   return document.getElementById('downloadPath') as HTMLInputElement;
 }
 
+function getOutputTargetSelect() {
+  return document.getElementById('outputTarget') as HTMLSelectElement;
+}
+
 function syncToggleOptionStyles() {
   document.querySelectorAll<HTMLElement>('[data-toggle-option]').forEach((option) => {
     const input = option.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
@@ -60,6 +64,7 @@ async function loadSettings() {
 
   (document.getElementById('resolution') as HTMLSelectElement).value = currentSettings.resolution;
   getDownloadPathInput().value = currentSettings.downloadPath;
+  getOutputTargetSelect().value = currentSettings.outputTarget;
   getVideoOnlyCheckbox().checked = Boolean(currentSettings.videoOnly);
   getAskDownloadPathEachTimeCheckbox().checked = Boolean(currentSettings.askDownloadPathEachTime);
   syncToggleOptionStyles();
@@ -70,6 +75,7 @@ async function saveSettings() {
     ...currentSettings,
     resolution: (document.getElementById('resolution') as HTMLSelectElement).value,
     downloadPath: getDownloadPathInput().value.trim(),
+    outputTarget: getOutputTargetSelect().value as ExtensionSettings['outputTarget'],
     videoOnly: getVideoOnlyCheckbox().checked,
     askDownloadPathEachTime: getAskDownloadPathEachTimeCheckbox().checked,
   };
@@ -90,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentSettings = { ...DEFAULT_SETTINGS };
     (document.getElementById('resolution') as HTMLSelectElement).value = DEFAULT_SETTINGS.resolution;
     getDownloadPathInput().value = DEFAULT_SETTINGS.downloadPath;
+    getOutputTargetSelect().value = DEFAULT_SETTINGS.outputTarget;
     getVideoOnlyCheckbox().checked = DEFAULT_SETTINGS.videoOnly;
     getAskDownloadPathEachTimeCheckbox().checked = DEFAULT_SETTINGS.askDownloadPathEachTime;
     syncToggleOptionStyles();

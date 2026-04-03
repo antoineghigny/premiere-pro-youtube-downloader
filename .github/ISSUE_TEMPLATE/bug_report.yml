@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible problem in the installer, backend, extension, or Premiere integration.
+description: Report a reproducible problem in the desktop app, installer, extension, or Premiere integration.
 title: "[Bug] "
 labels:
   - bug
@@ -16,8 +16,8 @@ body:
     attributes:
       label: Area
       options:
+        - Desktop app
         - Installer
-        - Backend
         - Chrome extension
         - Premiere CEP
         - Release workflow

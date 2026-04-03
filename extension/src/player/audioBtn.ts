@@ -71,7 +71,7 @@ export class AudioButton {
       const fallbackPath = rememberedAudioPath || String(settings.downloadPath ?? '').trim();
       let audioDownloadPath = fallbackPath;
 
-      if (settings.askDownloadPathEachTime) {
+      if (settings.outputTarget === 'downloadFolder' && settings.askDownloadPathEachTime) {
         const pickedPath = await pickDownloadFolder(
           'Choose folder for audio downloads',
           fallbackPath
@@ -112,11 +112,20 @@ export class AudioButton {
         downloadType: 'audio',
         audioOnly: true,
         downloadPath: audioDownloadPath,
+        outputTarget: settings.outputTarget,
       });
-      if (!ok) {
+      if (!ok.ok) {
         unsubscribeFromDownload(requestId);
         if (this.activeRequestId === requestId) {
           this.activeRequestId = null;
+        }
+        if (ok.cancelled) {
+          this.reset();
+          return;
+        }
+        if (ok.duplicate) {
+          this.setComplete();
+          return;
         }
         this.setError();
       }

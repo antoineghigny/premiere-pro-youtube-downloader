@@ -97,7 +97,7 @@ export class ClipButton {
     try {
       const settings = await getExtensionSettings();
       let downloadPath = String(settings.downloadPath ?? '').trim();
-      if (settings.askDownloadPathEachTime) {
+      if (settings.outputTarget === 'downloadFolder' && settings.askDownloadPathEachTime) {
         const pickedPath = await pickDownloadFolder(
           'Choose folder for clip downloads',
           downloadPath,
@@ -146,11 +146,24 @@ export class ClipButton {
         videoOnly,
         resolution: settings.resolution,
         downloadPath,
+        outputTarget: settings.outputTarget,
       });
-      if (!ok) {
+      if (!ok.ok) {
         unsubscribeFromDownload(requestId);
         if (this.activeRequestId === requestId) {
           this.activeRequestId = null;
+        }
+        if (ok.cancelled) {
+          this.progress = 0;
+          this.progressLabel = '';
+          this.isIndeterminate = false;
+          this.isActive = false;
+          this.updateMarkers(this.inTime, this.outTime);
+          return;
+        }
+        if (ok.duplicate) {
+          this.setComplete();
+          return;
         }
         this.setError();
       }

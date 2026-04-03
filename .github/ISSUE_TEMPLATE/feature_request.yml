@@ -22,7 +22,7 @@ body:
     id: scope
     attributes:
       label: Affected areas
-      description: Note whether this affects the installer, backend, extension, Premiere panel, or docs.
+      description: Note whether this affects the desktop app, installer, extension, Premiere panel, or docs.
   - type: textarea
     id: context
     attributes:

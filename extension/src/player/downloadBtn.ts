@@ -68,7 +68,7 @@ export class DownloadButton {
     try {
       const settings = await getExtensionSettings();
       let downloadPath = String(settings.downloadPath ?? '').trim();
-      if (settings.askDownloadPathEachTime) {
+      if (settings.outputTarget === 'downloadFolder' && settings.askDownloadPathEachTime) {
         const pickedPath = await pickDownloadFolder(
           'Choose folder for video downloads',
           downloadPath,
@@ -112,11 +112,20 @@ export class DownloadButton {
         videoOnly,
         resolution: settings.resolution,
         downloadPath,
+        outputTarget: settings.outputTarget,
       });
-      if (!ok) {
+      if (!ok.ok) {
         unsubscribeFromDownload(requestId);
         if (this.activeRequestId === requestId) {
           this.activeRequestId = null;
+        }
+        if (ok.cancelled) {
+          this.reset();
+          return;
+        }
+        if (ok.duplicate) {
+          this.setComplete();
+          return;
         }
         this.setError();
       }

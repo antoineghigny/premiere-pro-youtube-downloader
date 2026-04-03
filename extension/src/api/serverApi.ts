@@ -24,9 +24,19 @@ type RuntimeResponse = {
   requestId?: string;
   found?: boolean;
   cancelled?: boolean;
+  duplicate?: boolean;
   path?: string;
+  outputPath?: string;
   backendSynced?: boolean;
   status?: DownloadProgressState;
+};
+
+export type DownloadRequestResult = {
+  ok: boolean;
+  cancelled?: boolean;
+  duplicate?: boolean;
+  outputPath?: string;
+  error?: string;
 };
 
 const downloadHandlers = new Map<string, DownloadSubscription>();
@@ -37,6 +47,8 @@ function buildStatusSignature(status: DownloadProgressState): string {
     status.stage ?? '',
     String(status.indeterminate ?? ''),
     status.percentage ?? '',
+    status.speed ?? '',
+    status.eta ?? '',
     status.detail ?? '',
     status.path ?? '',
     status.message ?? '',
@@ -133,6 +145,8 @@ function ensureRuntimeListener() {
         stage: (String(message.stage ?? 'downloading').trim() as DownloadProgressState['stage']),
         indeterminate: Boolean(message.indeterminate ?? false),
         percentage: String(message.percentage ?? '').trim() || undefined,
+        speed: String(message.speed ?? '').trim() || undefined,
+        eta: String(message.eta ?? '').trim() || undefined,
         detail: String(message.detail ?? '').trim() || undefined,
       });
       return;
@@ -197,7 +211,7 @@ export function unsubscribeFromDownload(requestId: string) {
   void sendRuntimeMessage({ type: 'STOP_TRACKING_DOWNLOAD', requestId }).catch(() => {});
 }
 
-export async function sendDownloadRequest(req: DownloadRequest): Promise<boolean> {
+export async function sendDownloadRequest(req: DownloadRequest): Promise<DownloadRequestResult> {
   try {
     const response = await sendRuntimeMessage<RuntimeResponse>({
       type: 'START_DOWNLOAD',
@@ -206,13 +220,22 @@ export async function sendDownloadRequest(req: DownloadRequest): Promise<boolean
 
     if (!response.success) {
       console.error('[YT2PP] Request failed:', response.error ?? 'Unknown error');
-      return false;
+      return {
+        ok: false,
+        cancelled: Boolean(response.cancelled),
+        duplicate: Boolean(response.duplicate),
+        outputPath: typeof response.outputPath === 'string' ? response.outputPath : undefined,
+        error: response.error ?? 'Unknown error',
+      };
     }
 
-    return true;
+    return { ok: true };
   } catch (error) {
     console.error('[YT2PP] Network error:', error);
-    return false;
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    };
   }
 }
 

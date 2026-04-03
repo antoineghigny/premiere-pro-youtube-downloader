@@ -1,5 +1,10 @@
-import { io, Socket } from 'socket.io-client';
-import { BACKEND_URL } from './config';
+import {
+  BACKEND_PORTS,
+  parseBackendCandidate,
+  pickPreferredBackend,
+  type BackendCandidate,
+  type BackendHealthPayload,
+} from './backendDiscovery';
 import {
   DEFAULT_SETTINGS,
   type DownloadProgressState,
@@ -7,10 +12,17 @@ import {
   type ExtensionSettings,
 } from './api/contracts';
 
-type ActiveDownload = {
-  tabId: number;
-  status: DownloadProgressState;
-  cleanupTimeoutId: ReturnType<typeof setTimeout> | null;
+type ActiveDownloadState = {
+  requestId: string;
+  stage: DownloadProgressState['stage'];
+  percentage?: string;
+  speed?: string;
+  eta?: string;
+  detail?: string;
+  indeterminate: boolean;
+  path?: string;
+  message?: string;
+  updatedAt?: string;
 };
 
 type RuntimeMessage =
@@ -22,12 +34,28 @@ type RuntimeMessage =
   | { type: 'GET_DOWNLOAD_STATUS'; requestId: string }
   | { type: 'STOP_TRACKING_DOWNLOAD'; requestId: string };
 
-let socket: Socket | null = null;
+type ActiveDownload = {
+  tabId: number;
+  status: DownloadProgressState;
+  cleanupTimeoutId: ReturnType<typeof setTimeout> | null;
+};
+
+type BackendStartResponse = {
+  success: boolean;
+  error?: string;
+  duplicate?: boolean;
+  requestId?: string;
+  status?: string;
+  outputPath?: string;
+  folderSelectionRequired?: boolean;
+};
+
 const activeDownloads = new Map<string, ActiveDownload>();
 const DOWNLOAD_STATUS_RETENTION_MS = 60000;
 const LEGACY_SETTING_KEYS = ['secondsBefore', 'secondsAfter', 'audioOnly', 'downloadMP3', 'clipAudioOnly'];
 
-// Periodic cleanup for orphaned downloads
+let cachedBackendPort: number | null = null;
+
 setInterval(() => {
   const now = Date.now();
   for (const [id, download] of activeDownloads.entries()) {
@@ -37,6 +65,18 @@ setInterval(() => {
     }
   }
 }, 30000);
+
+setInterval(() => {
+  if (activeDownloads.size === 0) {
+    return;
+  }
+
+  void resyncActiveDownloads();
+}, 750);
+
+function backendBaseUrl(port: number): string {
+  return `http://127.0.0.1:${port}`;
+}
 
 function createInitialDownloadStatus(): DownloadProgressState {
   return {
@@ -76,155 +116,158 @@ function scheduleDownloadCleanup(requestId: string) {
   }, DOWNLOAD_STATUS_RETENTION_MS);
 }
 
-function getSocket(): Socket {
-  if (!socket) {
-    socket = io(BACKEND_URL, {
-      autoConnect: false,
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionDelay: 2000,
-      reconnectionAttempts: Infinity,
+function getStoredBackendPort(): Promise<number | null> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['backendPort'], (result) => {
+      const port = Number(result.backendPort);
+      resolve(Number.isInteger(port) && BACKEND_PORTS.includes(port) ? port : null);
     });
-
-    socket.on('connect', () => {
-      console.log('[YT2PP] Background connected to backend');
-      for (const requestId of activeDownloads.keys()) {
-        void subscribeToDownload(requestId);
-      }
-    });
-
-    socket.on('disconnect', () => {
-      console.log('[YT2PP] Background disconnected from backend');
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('[YT2PP] Backend socket connection error:', error);
-    });
-
-    socket.on('download-progress', (data: { requestId?: string; percentage?: string; stage?: string; indeterminate?: boolean; detail?: string }) => {
-      const requestId = data.requestId?.trim();
-      if (!requestId) return;
-      const stage = (data.stage?.trim() || 'downloading') as DownloadProgressState['stage'];
-      updateDownloadStatus(requestId, {
-        stage,
-        indeterminate: Boolean(data.indeterminate ?? false),
-        percentage: data.percentage?.trim() || undefined,
-        detail: data.detail?.trim() || undefined,
-      });
-      void relayToTab(requestId, {
-        type: 'DOWNLOAD_PROGRESS',
-        requestId,
-        percentage: data.percentage?.trim() ?? '',
-        stage,
-        indeterminate: Boolean(data.indeterminate ?? false),
-        detail: data.detail?.trim() ?? '',
-      });
-    });
-
-    socket.on('download-complete', (data: { requestId?: string; path?: string; stage?: string; percentage?: string; indeterminate?: boolean }) => {
-      const requestId = data.requestId?.trim();
-      if (!requestId) return;
-      updateDownloadStatus(requestId, {
-        stage: 'complete',
-        indeterminate: false,
-        percentage: '100%',
-        path: data.path ?? '',
-        message: undefined,
-      });
-      void relayToTab(requestId, {
-        type: 'DOWNLOAD_COMPLETE',
-        requestId,
-        path: data.path ?? '',
-        stage: 'complete',
-        percentage: '100%',
-        indeterminate: false,
-      }).finally(() => scheduleDownloadCleanup(requestId));
-    });
-
-    socket.on('download-failed', (data: { requestId?: string; message?: string; stage?: string; indeterminate?: boolean }) => {
-      const requestId = data.requestId?.trim();
-      if (!requestId) return;
-      updateDownloadStatus(requestId, {
-        stage: 'failed',
-        indeterminate: true,
-        message: data.message ?? 'Unknown error',
-      });
-      void relayToTab(requestId, {
-        type: 'DOWNLOAD_FAILED',
-        requestId,
-        message: data.message ?? 'Unknown error',
-        stage: 'failed',
-        indeterminate: true,
-      }).finally(() => scheduleDownloadCleanup(requestId));
-    });
-  }
-
-  return socket;
-}
-
-async function ensureSocketConnected(activeSocket: Socket): Promise<void> {
-  if (activeSocket.connected) return;
-
-  await new Promise<void>((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      activeSocket.off('connect', handleConnect);
-      activeSocket.off('connect_error', handleError);
-      reject(new Error('Socket connection timed out'));
-    }, 5000);
-
-    const handleConnect = () => {
-      clearTimeout(timeoutId);
-      activeSocket.off('connect_error', handleError);
-      resolve();
-    };
-
-    const handleError = (error: Error) => {
-      clearTimeout(timeoutId);
-      activeSocket.off('connect', handleConnect);
-      reject(error);
-    };
-
-    activeSocket.once('connect', handleConnect);
-    activeSocket.once('connect_error', handleError);
-    activeSocket.connect();
   });
 }
 
-async function subscribeToDownload(requestId: string): Promise<boolean> {
-  const activeSocket = getSocket();
+function storeBackendPort(port: number): Promise<void> {
+  return chrome.storage.local.set({ backendPort: port });
+}
+
+async function scanBackendPorts(): Promise<number> {
+  const settled = await Promise.allSettled(BACKEND_PORTS.map((candidate) => pingBackendPortDetailed(candidate)));
+  const candidates = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+  return pickPreferredBackend(candidates).port;
+}
+
+async function pingBackendPortDetailed(port: number): Promise<BackendCandidate> {
+  const response = await fetch(`${backendBaseUrl(port)}/`, {
+    method: 'GET',
+    signal: AbortSignal.timeout(800),
+  });
+  if (!response.ok) {
+    throw new Error(`Port ${port} is unavailable`);
+  }
+
+  return parseBackendCandidate(port, (await response.json()) as BackendHealthPayload);
+}
+
+async function discoverBackendPort(forceRefresh = false): Promise<number> {
+  if (!forceRefresh && cachedBackendPort !== null) {
+    return cachedBackendPort;
+  }
+
+  if (!forceRefresh) {
+    const stored = await getStoredBackendPort();
+    if (stored !== null) {
+      try {
+        const candidate = await pingBackendPortDetailed(stored);
+        if (candidate.instanceKind === 'development') {
+          cachedBackendPort = candidate.port;
+          return candidate.port;
+        }
+      } catch {
+        cachedBackendPort = null;
+      }
+    }
+  }
+
+  const port = await scanBackendPorts();
+  cachedBackendPort = port;
+  await storeBackendPort(port);
+  return port;
+}
+
+async function fetchBackend(path: string, init?: RequestInit, allowRetry = true): Promise<Response> {
+  const port = await discoverBackendPort();
 
   try {
-    await ensureSocketConnected(activeSocket);
-    await new Promise<void>((resolve, reject) => {
-      activeSocket.timeout(5000).emit(
-        'subscribe-download',
-        { requestId },
-        (err: Error | null, response?: { success?: boolean; message?: string }) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          if (!response?.success) {
-            reject(new Error(response?.message ?? 'Subscription rejected'));
-            return;
-          }
-
-          resolve();
-        }
-      );
-    });
-
-    return true;
+    return await fetch(`${backendBaseUrl(port)}${path}`, init);
   } catch (error) {
-    console.error('[YT2PP] Could not subscribe to download events:', error);
-    return false;
+    if (!allowRetry) {
+      throw error;
+    }
+
+    cachedBackendPort = null;
+    const fallbackPort = await discoverBackendPort(true);
+    return fetch(`${backendBaseUrl(fallbackPort)}${path}`, init);
   }
 }
 
-function unsubscribeFromDownload(requestId: string) {
-  if (socket?.connected) {
-    socket.emit('unsubscribe-download', { requestId });
+async function resyncActiveDownloads(): Promise<void> {
+  if (activeDownloads.size === 0) {
+    return;
+  }
+
+  try {
+    const response = await fetchBackend('/active-downloads', {
+      method: 'GET',
+    });
+    if (!response.ok) {
+      return;
+    }
+
+    const data = (await response.json()) as { items?: ActiveDownloadState[] };
+    for (const download of data.items ?? []) {
+      if (!activeDownloads.has(download.requestId)) {
+        continue;
+      }
+
+      if (download.stage === 'complete') {
+        updateDownloadStatus(download.requestId, {
+          stage: 'complete',
+          indeterminate: false,
+          percentage: download.percentage ?? '100%',
+          speed: undefined,
+          eta: undefined,
+          path: download.path ?? '',
+          message: undefined,
+        });
+        void relayToTab(download.requestId, {
+          type: 'DOWNLOAD_COMPLETE',
+          requestId: download.requestId,
+          path: download.path ?? '',
+          stage: 'complete',
+          percentage: download.percentage ?? '100%',
+          indeterminate: false,
+        }).finally(() => scheduleDownloadCleanup(download.requestId));
+        continue;
+      }
+
+      if (download.stage === 'failed') {
+        updateDownloadStatus(download.requestId, {
+          stage: 'failed',
+          indeterminate: true,
+          speed: undefined,
+          eta: undefined,
+          message: download.message ?? 'Unknown error',
+        });
+        void relayToTab(download.requestId, {
+          type: 'DOWNLOAD_FAILED',
+          requestId: download.requestId,
+          message: download.message ?? 'Unknown error',
+          stage: 'failed',
+          indeterminate: true,
+        }).finally(() => scheduleDownloadCleanup(download.requestId));
+        continue;
+      }
+
+      updateDownloadStatus(download.requestId, {
+        stage: download.stage,
+        indeterminate: Boolean(download.indeterminate),
+        percentage: download.percentage ?? undefined,
+        speed: download.speed ?? undefined,
+        eta: download.eta ?? undefined,
+        detail: download.detail ?? undefined,
+      });
+      void relayToTab(download.requestId, {
+        type: 'DOWNLOAD_PROGRESS',
+        requestId: download.requestId,
+        percentage: download.percentage ?? '',
+        speed: download.speed ?? '',
+        eta: download.eta ?? '',
+        stage: download.stage,
+        indeterminate: Boolean(download.indeterminate),
+        detail: download.detail ?? '',
+      });
+    }
+  } catch (error) {
+    console.warn('[YT2PP] Active download resync failed:', error);
   }
 }
 
@@ -258,7 +301,6 @@ function stopTrackingDownload(requestId: string) {
     clearCleanupTimer(activeDownload);
   }
   activeDownloads.delete(requestId);
-  unsubscribeFromDownload(requestId);
 }
 
 function getStoredSettings(): Promise<ExtensionSettings> {
@@ -290,7 +332,7 @@ function saveStoredSettings(settings: ExtensionSettings): Promise<void> {
 }
 
 async function postJson(path: string, payload: object): Promise<Response> {
-  return fetch(`${BACKEND_URL}${path}`, {
+  return fetchBackend(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -308,11 +350,8 @@ async function syncSettingsToBackend(settings: ExtensionSettings): Promise<boole
 
 async function checkBackendHealth(): Promise<boolean> {
   try {
-    const response = await fetch(BACKEND_URL, {
-      method: 'GET',
-      signal: AbortSignal.timeout(3000),
-    });
-    return response.ok;
+    await discoverBackendPort(true);
+    return true;
   } catch {
     return false;
   }
@@ -344,6 +383,29 @@ async function pickFolder(title: string, initialPath = '') {
   }
 }
 
+async function submitDownloadRequest(requestId: string, request: DownloadRequest): Promise<BackendStartResponse> {
+  const response = await postJson('/handle-video-url', {
+    ...request,
+    requestId,
+    downloadMP3: request.audioOnly ?? request.downloadMP3 ?? false,
+  });
+
+  if (response.ok) {
+    return { success: true, requestId };
+  }
+
+  const data = await response.json().catch(() => ({ error: 'Unknown error' } as BackendStartResponse));
+  return {
+    success: false,
+    error: data.error ?? 'Request failed.',
+    duplicate: Boolean(data.duplicate),
+    requestId: typeof data.requestId === 'string' ? data.requestId : undefined,
+    status: typeof data.status === 'string' ? data.status : undefined,
+    outputPath: typeof data.outputPath === 'string' ? data.outputPath : undefined,
+    folderSelectionRequired: Boolean(data.folderSelectionRequired),
+  };
+}
+
 async function startDownload(sender: chrome.runtime.MessageSender, request: DownloadRequest) {
   const tabId = sender.tab?.id;
   if (tabId === undefined) {
@@ -357,25 +419,43 @@ async function startDownload(sender: chrome.runtime.MessageSender, request: Down
     cleanupTimeoutId: null,
   });
 
-  const subscribed = await subscribeToDownload(requestId);
-  if (!subscribed) {
-    stopTrackingDownload(requestId);
-    return { success: false, error: 'Could not subscribe to download events.' };
-  }
-
   try {
-    const response = await postJson('/handle-video-url', {
-      ...request,
-      requestId,
-      downloadMP3: request.audioOnly ?? request.downloadMP3 ?? false,
-    });
+    let response = await submitDownloadRequest(requestId, request);
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({ error: 'Unknown error' }));
-      stopTrackingDownload(requestId);
-      return { success: false, error: data.error ?? 'Request failed.' };
+    if (!response.success && response.folderSelectionRequired) {
+      const pickedFolder = await pickFolder(
+        'Choose a folder for this download',
+        String(request.downloadPath ?? '')
+      );
+      if (pickedFolder.cancelled) {
+        stopTrackingDownload(requestId);
+        return { success: false, cancelled: true };
+      }
+      if (!pickedFolder.success) {
+        stopTrackingDownload(requestId);
+        return { success: false, error: pickedFolder.error ?? 'Could not choose a folder' };
+      }
+
+      response = await submitDownloadRequest(requestId, {
+        ...request,
+        downloadPath: pickedFolder.path ?? '',
+        outputTarget: 'downloadFolder',
+      });
     }
 
+    if (!response.success) {
+      stopTrackingDownload(requestId);
+      return {
+        success: false,
+        error: response.error ?? 'Request failed.',
+        duplicate: response.duplicate,
+        requestId: response.requestId,
+        status: response.status,
+        outputPath: response.outputPath,
+      };
+    }
+
+    void resyncActiveDownloads();
     return { success: true, requestId };
   } catch (error) {
     stopTrackingDownload(requestId);

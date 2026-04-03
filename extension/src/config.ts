@@ -1,1 +1,2 @@
-export const BACKEND_URL = 'http://127.0.0.1:3001';
+export const APP_FINGERPRINT = 'YT2Premiere';
+export const BACKEND_PORTS = [3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010];
