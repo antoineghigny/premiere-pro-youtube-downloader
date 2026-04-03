@@ -50,7 +50,7 @@ The installer is rebuilt from the current repository state by `.github/workflows
 - the installer does not register Windows startup entries, scheduled tasks, or auto-launch behavior
 - downloads default to the current Premiere project folder when Premiere is available
 - otherwise downloads fall back to `~/Downloads/YT2Premiere/YYYY-MM-DD`
-- the extension now routes backend traffic through its service worker, and its manifest key pins a stable extension ID so the local API only accepts this extension origin
+- the extension routes backend traffic through its service worker; Chrome can present these localhost requests as either the pinned extension origin or the active YouTube tab origin, so the local API trusts both
 
 ## Contributing
 

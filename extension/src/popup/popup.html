@@ -28,35 +28,26 @@
     </div>
 
     <div>
-      <label class="field-label" for="downloadPath">Download Path</label>
-      <input type="text" id="downloadPath" class="field-input" placeholder="Auto: Project folder">
-    </div>
-
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label class="field-label text-[10px]" for="secondsBefore">Sec. Before</label>
-        <input type="number" id="secondsBefore" class="field-input" value="15" min="0">
-      </div>
-      <div>
-        <label class="field-label text-[10px]" for="secondsAfter">Sec. After</label>
-        <input type="number" id="secondsAfter" class="field-input" value="15" min="0">
-      </div>
+      <label class="field-label" for="downloadPath">Video / Clip Path</label>
+      <input type="text" id="downloadPath" class="field-input" placeholder="Auto: Premiere project folder">
     </div>
 
     <div class="pt-2 space-y-2">
-      <label class="toggle-option" for="audioOnly" data-toggle-option>
-        <input type="checkbox" id="audioOnly">
-        <span class="toggle-option__copy">
-          <span class="toggle-option__title">Audio Only</span>
-          <span class="toggle-option__meta">Export a WAV file for Premiere</span>
+      <label class="checkbox-option" for="videoOnly" data-toggle-option>
+        <input type="checkbox" id="videoOnly">
+        <span class="checkbox-option__box" aria-hidden="true"></span>
+        <span class="checkbox-option__copy">
+          <span class="checkbox-option__title">Video Only</span>
+          <span class="checkbox-option__meta">Skip audio for video downloads and video clips</span>
         </span>
       </label>
 
-      <label class="toggle-option" for="videoOnly" data-toggle-option>
-        <input type="checkbox" id="videoOnly">
-        <span class="toggle-option__copy">
-          <span class="toggle-option__title">Video Only</span>
-          <span class="toggle-option__meta">Skip audio in the downloaded media</span>
+      <label class="checkbox-option" for="askDownloadPathEachTime" data-toggle-option>
+        <input type="checkbox" id="askDownloadPathEachTime">
+        <span class="checkbox-option__box" aria-hidden="true"></span>
+        <span class="checkbox-option__copy">
+          <span class="checkbox-option__title">Ask Folder Each Time</span>
+          <span class="checkbox-option__meta">Open the OS folder picker before video, clip, and audio downloads</span>
         </span>
       </label>
     </div>

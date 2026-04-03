@@ -73,6 +73,7 @@
   right: 4px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(97, 22, 255, 0.92) 0%, rgba(128, 72, 255, 0.92) 100%);
+  background-size: 200% 100%;
   transform: scaleX(0);
   transform-origin: left center;
   opacity: 0;
@@ -127,6 +128,16 @@
   background: rgba(239, 68, 68, 0.92);
 }
 
+.yt2pp-btn.yt2pp-indeterminate .yt2pp-btn-progress-fill {
+  transform: scaleX(1);
+  animation: yt2pp-indeterminate-sweep 1.15s linear infinite;
+}
+
+@keyframes yt2pp-indeterminate-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: 0 0; }
+}
+
 /* Tooltip */
 .yt2pp-btn .yt2pp-tooltip {
   display: none;
@@ -164,19 +175,21 @@
 }
 
 .yt2pp-btn.yt2pp-ready::before {
-  background: rgba(97, 22, 255, 0.18);
-  box-shadow: inset 0 0 0 1px rgba(97, 22, 255, 0.4);
+  @apply bg-main/40;
+  box-shadow: inset 0 0 0 2px rgba(97, 22, 255, 0.7);
   opacity: 1;
 }
 
 .yt2pp-btn.yt2pp-disabled { opacity: 0.3; cursor: default; }
+
+/* IN/OUT button when marker is set - using Tailwind-like utilities */
 .yt2pp-btn.yt2pp-marker-set {
+  @apply bg-main/40;
+  box-shadow: inset 0 0 0 2px rgba(97, 22, 255, 0.7);
 }
 
-.yt2pp-btn.yt2pp-marker-set::before {
-  background: rgba(97, 22, 255, 0.18);
-  box-shadow: inset 0 0 0 1px rgba(97, 22, 255, 0.45);
-  opacity: 1;
+.yt2pp-btn.yt2pp-marker-set svg {
+  @apply relative z-10;
 }
 
 /* Clip Overlays */

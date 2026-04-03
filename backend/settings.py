@@ -29,10 +29,8 @@ LOG_FILE = os.path.join(SETTINGS_DIR, 'yt2premiere.log')
 DEFAULT_SETTINGS = {
     'resolution': '1080',
     'downloadPath': '',
-    'audioOnly': False,
+    'askDownloadPathEachTime': False,
     'videoOnly': False,
-    'secondsBefore': '15',
-    'secondsAfter': '15',
 }
 
 os.makedirs(SETTINGS_DIR, exist_ok=True)
@@ -52,13 +50,6 @@ def _coerce_bool(value, default=False):
     return default
 
 
-def _coerce_non_negative_int(value, default):
-    try:
-        return max(0, int(value))
-    except (TypeError, ValueError):
-        return default
-
-
 def normalize_settings(raw_settings, base_settings=None):
     settings = DEFAULT_SETTINGS.copy()
     if isinstance(base_settings, dict):
@@ -75,24 +66,17 @@ def normalize_settings(raw_settings, base_settings=None):
     if not isinstance(download_path, str):
         download_path = ''
 
-    audio_only = _coerce_bool(
-        raw_settings.get('audioOnly', raw_settings.get('downloadMP3', settings['audioOnly'])),
-        settings['audioOnly'],
-    )
     video_only = _coerce_bool(raw_settings.get('videoOnly', settings['videoOnly']), settings['videoOnly'])
-    if audio_only:
-        video_only = False
-
-    seconds_before = _coerce_non_negative_int(raw_settings.get('secondsBefore', settings['secondsBefore']), 15)
-    seconds_after = _coerce_non_negative_int(raw_settings.get('secondsAfter', settings['secondsAfter']), 15)
+    ask_download_path_each_time = _coerce_bool(
+        raw_settings.get('askDownloadPathEachTime', settings['askDownloadPathEachTime']),
+        settings['askDownloadPathEachTime'],
+    )
 
     return {
         'resolution': resolution,
         'downloadPath': download_path.strip(),
-        'audioOnly': audio_only,
+        'askDownloadPathEachTime': ask_download_path_each_time,
         'videoOnly': video_only,
-        'secondsBefore': str(seconds_before),
-        'secondsAfter': str(seconds_after),
     }
 
 

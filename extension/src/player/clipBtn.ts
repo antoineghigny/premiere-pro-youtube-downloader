@@ -1,11 +1,16 @@
 import { getVideoUrl } from '../utils/pageUtils';
+import type { DownloadProgressState } from '../api/contracts';
 import {
   createRequestId,
+  getExtensionSettings,
+  pickDownloadFolder,
   registerDownloadHandlers,
+  saveExtensionSettings,
   sendDownloadRequest,
   unsubscribeFromDownload,
 } from '../api/serverApi';
 import { formatDuration } from '../utils/timeUtils';
+import { getProgressLabel } from './progressUi';
 
 type ButtonState = 'disabled' | 'ready' | 'loading' | 'progress' | 'complete' | 'error';
 
@@ -20,6 +25,8 @@ export class ClipButton {
   private isActive = false;
   private onComplete: () => void;
   private progress = 0;
+  private progressLabel = '';
+  private isIndeterminate = false;
   private activeRequestId: string | null = null;
 
   constructor(onComplete: () => void) {
@@ -38,14 +45,17 @@ export class ClipButton {
 
     const progressScale = this.state === 'disabled' || this.state === 'ready'
       ? 0
-      : Math.max(0, Math.min(100, this.progress)) / 100;
+      : this.isIndeterminate
+        ? 1
+        : Math.max(0, Math.min(100, this.progress)) / 100;
     const showProgressLabel = this.state === 'loading' || this.state === 'progress' || this.state === 'complete';
-    const progressLabel = `${Math.max(0, Math.round(this.progress))}%`;
+    const progressLabel = this.progressLabel || `${Math.max(0, Math.round(this.progress))}%`;
 
     this.element.classList.toggle('yt2pp-busy', this.state === 'loading' || this.state === 'progress');
     this.element.classList.toggle('yt2pp-complete', this.state === 'complete');
     this.element.classList.toggle('yt2pp-error', this.state === 'error');
     this.element.classList.toggle('yt2pp-show-progress', showProgressLabel);
+    this.element.classList.toggle('yt2pp-indeterminate', showProgressLabel && this.isIndeterminate);
 
     this.element.innerHTML = `
       <span class="yt2pp-btn-progress-fill" style="transform: scaleX(${progressScale.toFixed(4)})"></span>
@@ -84,19 +94,42 @@ export class ClipButton {
     const url = getVideoUrl();
     if (!url) return;
 
-    this.isActive = true;
-    this.state = 'loading';
-    this.progress = 4;
-    this.render();
-
-    chrome.storage.sync.get({ audioOnly: false, downloadMP3: false, videoOnly: false, resolution: '1080', downloadPath: '' }, async (items) => {
+    try {
+      const settings = await getExtensionSettings();
+      let downloadPath = String(settings.downloadPath ?? '').trim();
+      if (settings.askDownloadPathEachTime) {
+        const pickedPath = await pickDownloadFolder(
+          'Choose folder for clip downloads',
+          downloadPath,
+        );
+        if (!pickedPath) {
+          this.progress = 0;
+          this.progressLabel = '';
+          this.isIndeterminate = false;
+          this.updateMarkers(this.inTime, this.outTime);
+          this.isActive = false;
+          return;
+        }
+        downloadPath = pickedPath;
+        if (downloadPath !== settings.downloadPath) {
+          await saveExtensionSettings({
+            ...settings,
+            downloadPath,
+          });
+        }
+      }
       const requestId = createRequestId();
-      const audioOnly = Boolean(items.audioOnly ?? items.downloadMP3);
-      const videoOnly = Boolean(items.videoOnly) && !audioOnly;
+      const videoOnly = Boolean(settings.videoOnly);
 
+      this.isActive = true;
+      this.state = 'loading';
+      this.progress = 0;
+      this.progressLabel = 'Prep';
+      this.isIndeterminate = true;
+      this.render();
       this.activeRequestId = requestId;
       registerDownloadHandlers(requestId, {
-        onProgress: (pct) => this.setProgress(pct),
+        onProgress: (status) => this.setProgress(status),
         onComplete: () => this.setComplete(),
         onFailed: (msg) => {
           console.error('[YT2PP] Clip download failed:', msg);
@@ -108,12 +141,11 @@ export class ClipButton {
         requestId,
         videoUrl: url,
         downloadType: 'clip',
-        audioOnly,
         clipIn: Math.min(this.inTime!, this.outTime!),
         clipOut: Math.max(this.inTime!, this.outTime!),
         videoOnly,
-        resolution: items.resolution as string,
-        downloadPath: items.downloadPath as string,
+        resolution: settings.resolution,
+        downloadPath,
       });
       if (!ok) {
         unsubscribeFromDownload(requestId);
@@ -122,16 +154,21 @@ export class ClipButton {
         }
         this.setError();
       }
-    });
+    } catch (error) {
+      console.error('[YT2PP] Clip action failed:', error);
+      this.setError();
+    }
   }
 
-  setProgress(pct: string) {
+  setProgress(status: DownloadProgressState) {
     if (!this.isActive) return;
-    const parsed = Number.parseFloat(pct);
+    const parsed = Number.parseFloat(String(status.percentage ?? ''));
     if (Number.isFinite(parsed)) {
       this.progress = Math.max(this.progress, Math.min(parsed, 100));
     }
-    this.state = 'progress';
+    this.isIndeterminate = Boolean(status.indeterminate);
+    this.progressLabel = getProgressLabel(status, this.progress);
+    this.state = this.isIndeterminate ? 'loading' : 'progress';
     this.render();
   }
 
@@ -142,10 +179,14 @@ export class ClipButton {
     }
     this.state = 'complete';
     this.progress = 100;
+    this.progressLabel = '100%';
+    this.isIndeterminate = false;
     this.render();
     setTimeout(() => {
       this.isActive = false;
       this.progress = 0;
+      this.progressLabel = '';
+      this.isIndeterminate = false;
       this.inTime = null;
       this.outTime = null;
       this.state = 'disabled';
@@ -164,10 +205,14 @@ export class ClipButton {
     }
     this.state = 'error';
     this.isActive = false;
-    this.progress = Math.max(this.progress, 18);
+    this.progress = Math.max(this.progress, this.isIndeterminate ? 0 : 18);
+    this.progressLabel = 'Error';
+    this.isIndeterminate = true;
     this.render();
     setTimeout(() => {
       this.progress = 0;
+      this.progressLabel = '';
+      this.isIndeterminate = false;
       this.updateMarkers(this.inTime, this.outTime);
     }, 3000);
   }
@@ -179,6 +224,8 @@ export class ClipButton {
     }
     this.isActive = false;
     this.progress = 0;
+    this.progressLabel = '';
+    this.isIndeterminate = false;
     this.updateMarkers(this.inTime, this.outTime);
   }
 }

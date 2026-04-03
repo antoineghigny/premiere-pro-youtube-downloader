@@ -21,14 +21,37 @@ import pygame.mixer
 from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, join_room, leave_room
 
-from downloader import set_socketio, download_video, download_audio, download_clip
+from downloader import (
+    set_socketio,
+    download_video,
+    download_audio,
+    download_clip,
+    _emit_download_stage,
+    DOWNLOAD_STAGE_PREPARING,
+    DOWNLOAD_STAGE_IMPORTING,
+    DOWNLOAD_STAGE_COMPLETE,
+    DOWNLOAD_STAGE_FAILED,
+)
+from dialogs import pick_folder
 from premiere import is_premiere_running, import_video_to_premiere, get_default_download_path
 
 app = Flask(__name__)
 
-TRUSTED_EXTENSION_ORIGIN = 'chrome-extension://noloogahcbofnjjkpbeandcgoldejcic'
+# Load trusted extension IDs from environment or use defaults
+_DEFAULT_EXTENSION_IDS = 'noloogahcbofnjjkpbeandcgoldejcic,aidffebbdmdjibggcfkeihnljgambjjd'
+_extension_ids = os.environ.get('YT2PP_EXTENSION_IDS', _DEFAULT_EXTENSION_IDS).split(',')
+TRUSTED_EXTENSION_ORIGINS = tuple(f'chrome-extension://{eid.strip()}' for eid in _extension_ids if eid.strip())
+# Chrome may attribute extension-initiated localhost traffic to the active tab
+# origin, especially for Socket.IO/WebSocket requests triggered from YouTube.
+TRUSTED_WEB_ORIGINS = (
+    'https://www.youtube.com',
+)
+TRUSTED_WEB_ORIGIN_PATHS = {
+    '/handle-video-url',
+}
 TRUSTED_ORIGIN_PATTERNS = (
-    re.compile(rf'^{re.escape(TRUSTED_EXTENSION_ORIGIN)}$'),
+    *(re.compile(rf'^{re.escape(origin)}$') for origin in TRUSTED_EXTENSION_ORIGINS),
+    *(re.compile(rf'^{re.escape(origin)}$') for origin in TRUSTED_WEB_ORIGINS),
 )
 
 
@@ -37,6 +60,15 @@ def is_allowed_origin(origin):
         return False
     normalized_origin = origin.strip()
     return any(pattern.fullmatch(normalized_origin) for pattern in TRUSTED_ORIGIN_PATTERNS)
+
+
+def is_allowed_request_origin(origin, path):
+    if not origin:
+        return False
+    normalized_origin = origin.strip()
+    if normalized_origin in TRUSTED_EXTENSION_ORIGINS:
+        return True
+    return path in TRUSTED_WEB_ORIGIN_PATHS and normalized_origin in TRUSTED_WEB_ORIGINS
 
 
 socketio = SocketIO(
@@ -53,7 +85,7 @@ set_socketio(socketio)
 @app.after_request
 def add_security_headers(response):
     origin = request.headers.get('Origin')
-    if origin and is_allowed_origin(origin):
+    if origin and is_allowed_request_origin(origin, request.path):
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Vary'] = 'Origin'
     response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
@@ -68,7 +100,7 @@ def add_security_headers(response):
 def validate_request_origin():
     origin = request.headers.get('Origin')
     if request.method == 'OPTIONS':
-        if origin and not is_allowed_origin(origin):
+        if origin and not is_allowed_request_origin(origin, request.path):
             logger.warning('Blocked preflight request from origin %s to %s', origin, request.path)
             return jsonify(error='Origin not allowed'), 403
         return '', 204
@@ -77,7 +109,7 @@ def validate_request_origin():
         logger.warning('Blocked state-changing request without origin to %s', request.path)
         return jsonify(error='Origin required'), 403
 
-    if origin and not is_allowed_origin(origin):
+    if origin and not is_allowed_request_origin(origin, request.path):
         logger.warning('Blocked request from origin %s to %s', origin, request.path)
         return jsonify(error='Origin not allowed'), 403
     return None
@@ -113,6 +145,28 @@ def update_settings():
     return jsonify(success=True, settings=saved_settings), 200
 
 
+@app.route('/pick-folder', methods=['POST'])
+def pick_folder_route():
+    data = request.get_json(silent=True) or {}
+    logger.info(
+        'Opening folder picker: title=%s initial_path=%s',
+        data.get('title') or 'Select folder',
+        data.get('initialPath') or '',
+    )
+    result = pick_folder(
+        initial_path=data.get('initialPath'),
+        title=data.get('title') or 'Select folder',
+    )
+    if result.get('cancelled'):
+        logger.info('Folder picker cancelled')
+        return jsonify(success=False, cancelled=True), 200
+    if not result.get('success'):
+        logger.warning('Folder picker failed: %s', result.get('error') or 'Unknown error')
+        return jsonify(success=False, cancelled=False, error=result.get('error') or 'Folder picker failed'), 500
+    logger.info('Folder picker selected path: %s', result.get('path') or '')
+    return jsonify(success=True, path=result.get('path') or ''), 200
+
+
 @app.route('/handle-video-url', methods=['POST'])
 def handle_video_url():
     data = request.get_json()
@@ -128,54 +182,60 @@ def handle_video_url():
     if not video_url:
         return jsonify(error="No video URL"), 400
 
+    # Validate YouTube URL
+    video_url_str = str(video_url).strip()
+    if 'youtube.com' not in video_url_str and 'youtu.be' not in video_url_str:
+        return jsonify(error="Only YouTube URLs are supported"), 400
+
     if download_type not in ('clip', 'full', 'audio'):
         return jsonify(error="Invalid download type"), 400
 
     settings = normalize_settings(data, base_settings=load_settings())
     resolution = settings['resolution']
-    download_mp3 = settings['audioOnly']
     video_only = settings['videoOnly']
     user_path = settings['downloadPath']
     download_path = user_path if user_path else get_default_download_path()
+    clip_start = None
+    clip_end = None
+
+    if download_type == 'clip':
+        raw_clip_start = data.get('clipIn')
+        raw_clip_end = data.get('clipOut')
+        if raw_clip_start is None or raw_clip_end is None:
+            return jsonify(error='clipIn and clipOut are required'), 400
+        try:
+            clip_start = float(raw_clip_start)
+            clip_end = float(raw_clip_end)
+        except (TypeError, ValueError):
+            return jsonify(error='clipIn and clipOut must be numbers'), 400
+        if clip_end <= clip_start:
+            return jsonify(error='clipOut must be greater than clipIn'), 400
 
     os.makedirs(download_path, exist_ok=True)
 
     def process():
         file_path = None
         try:
+            _emit_download_stage(request_id, DOWNLOAD_STAGE_PREPARING, detail='Queueing download')
             if download_type == 'full':
-                if download_mp3:
-                    file_path = download_audio(video_url, download_path, request_id=request_id)
-                else:
-                    file_path = download_video(
-                        video_url,
-                        resolution,
-                        download_path,
-                        download_mp3,
-                        video_only,
-                        request_id=request_id,
-                    )
+                file_path = download_video(
+                    video_url,
+                    resolution,
+                    download_path,
+                    False,
+                    video_only,
+                    request_id=request_id,
+                )
             elif download_type == 'audio':
                 file_path = download_audio(video_url, download_path, request_id=request_id)
             elif download_type == 'clip':
-                clip_start = data.get('clipIn')
-                clip_end = data.get('clipOut')
-                if clip_start is not None and clip_end is not None:
-                    clip_start = float(clip_start)
-                    clip_end = float(clip_end)
-                else:
-                    current_time = float(data.get('currentTime', 0))
-                    seconds_before = int(settings['secondsBefore'])
-                    seconds_after = int(settings['secondsAfter'])
-                    clip_start = max(0, current_time - seconds_before)
-                    clip_end = current_time + seconds_after
                 file_path = download_clip(
                     video_url,
                     resolution,
                     download_path,
                     clip_start,
                     clip_end,
-                    download_mp3,
+                    False,
                     video_only,
                     request_id=request_id,
                 )
@@ -183,12 +243,32 @@ def handle_video_url():
             if not file_path:
                 raise RuntimeError('Download completed but no output file was produced')
 
+            _emit_download_stage(request_id, DOWNLOAD_STAGE_IMPORTING, detail='Importing into Premiere')
             import_video_to_premiere(file_path)
             play_notification_sound()
-            socketio.emit('download-complete', {'requestId': request_id, 'path': file_path}, to=request_id)
+            socketio.emit(
+                'download-complete',
+                {
+                    'requestId': request_id,
+                    'stage': DOWNLOAD_STAGE_COMPLETE,
+                    'path': file_path,
+                    'percentage': '100.0%',
+                    'indeterminate': False,
+                },
+                to=request_id,
+            )
         except Exception as e:
             logger.error(f"Processing error: {e}", exc_info=True)
-            socketio.emit('download-failed', {'requestId': request_id, 'message': str(e)}, to=request_id)
+            socketio.emit(
+                'download-failed',
+                {
+                    'requestId': request_id,
+                    'stage': DOWNLOAD_STAGE_FAILED,
+                    'message': str(e),
+                    'indeterminate': True,
+                },
+                to=request_id,
+            )
 
     thread = threading.Thread(target=process, daemon=True)
     thread.start()
