@@ -9,6 +9,7 @@ import {
   sendDownloadRequest,
   unsubscribeFromDownload,
 } from '../api/serverApi';
+import { t } from '../i18n';
 import { getProgressLabel } from './progressUi';
 
 type ButtonState = 'idle' | 'loading' | 'progress' | 'complete' | 'error';
@@ -28,7 +29,7 @@ export class AudioButton {
   constructor() {
     this.element = document.createElement('button');
     this.element.className = 'ytp-button yt2pp-btn yt2pp-audio-btn';
-    this.element.title = 'Download Audio';
+    this.element.title = t('player.downloadAudio');
     this.render();
     this.element.addEventListener('click', () => this.handleClick());
   }
@@ -52,7 +53,7 @@ export class AudioButton {
       <span class="yt2pp-btn-progress-fill" style="transform: scaleX(${progressScale.toFixed(4)})"></span>
       ${showProgressLabel ? `<span class="yt2pp-btn-progress-label">${progressLabel}</span>` : ''}
       ${ICON_AUDIO}
-      <div class="yt2pp-tooltip">Download Audio</div>
+      <div class="yt2pp-tooltip">${t('player.downloadAudio')}</div>
     `;
   }
 
@@ -73,7 +74,7 @@ export class AudioButton {
 
       if (settings.outputTarget === 'downloadFolder' && settings.askDownloadPathEachTime) {
         const pickedPath = await pickDownloadFolder(
-          'Choose folder for audio downloads',
+          t('folder.audio'),
           fallbackPath
         );
         if (!pickedPath) {
@@ -93,7 +94,7 @@ export class AudioButton {
       this.isActive = true;
       this.state = 'loading';
       this.progress = 0;
-      this.progressLabel = 'Prep';
+      this.progressLabel = t('player.prep');
       this.isIndeterminate = true;
       this.render();
       this.activeRequestId = requestId;
@@ -168,7 +169,7 @@ export class AudioButton {
     this.state = 'error';
     this.isActive = false;
     this.progress = Math.max(this.progress, this.isIndeterminate ? 0 : 18);
-    this.progressLabel = 'Error';
+    this.progressLabel = t('player.error');
     this.isIndeterminate = true;
     this.render();
     setTimeout(() => this.reset(), 3000);

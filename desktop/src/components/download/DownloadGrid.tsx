@@ -1,4 +1,5 @@
 import type { DownloadItem } from '../../api/types';
+import { useTranslation } from '../../i18n';
 import { DownloadCard } from './DownloadCard';
 import { EmptyState } from './EmptyState';
 
@@ -10,11 +11,13 @@ type DownloadGridProps = {
 };
 
 export function DownloadGrid({ items, onRetry, onRemove, onReveal }: DownloadGridProps) {
+  const t = useTranslation();
+
   if (items.length === 0) {
     return (
       <EmptyState
-        title="Nothing queued yet"
-        description="Queue downloads from the URL bar to fill the board with live thumbnails, progress, and Premiere status."
+        title={t('downloadGrid.emptyTitle')}
+        description={t('downloadGrid.emptyDescription')}
       />
     );
   }

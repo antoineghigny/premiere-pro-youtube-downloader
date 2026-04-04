@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FolderOpen, LoaderCircle, Puzzle, Sparkles, Wand2, X } from 'lucide-react';
 
 import type { DesktopSettings, FFmpegPreset, IntegrationStatus } from '../../api/types';
+import { useTranslation } from '../../i18n';
 import { Button } from '../common/Button';
 import { Checkbox } from '../common/Checkbox';
 import { Dropdown } from '../common/Dropdown';
@@ -40,6 +41,7 @@ export function SettingsModal({
   onInstallPremiere,
   onOpenBrowserSetup,
 }: SettingsModalProps) {
+  const t = useTranslation();
   const [draft, setDraft] = useState(settings);
   const [saving, setSaving] = useState(false);
 
@@ -62,8 +64,8 @@ export function SettingsModal({
       <div className="panel-surface modal-shell max-h-full w-full max-w-5xl overflow-auto p-0">
         <div className="flex items-center justify-between border-b border-white/8 px-6 py-5">
           <div>
-            <div className="text-xs uppercase tracking-[0.28em] text-[var(--text-muted)]">Preferences</div>
-            <div className="text-xl font-semibold text-white">Desktop defaults</div>
+            <div className="text-xs uppercase tracking-[0.28em] text-[var(--text-muted)]">{t('settings.preferencesLabel')}</div>
+            <div className="text-xl font-semibold text-white">{t('settings.desktopDefaults')}</div>
           </div>
           <Button
             variant="ghost"
@@ -76,7 +78,7 @@ export function SettingsModal({
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="settings-field">
-                <span>Default resolution</span>
+                <span>{t('settings.defaultResolution')}</span>
                 <Dropdown
                   value={draft.resolution}
                   options={[
@@ -90,7 +92,7 @@ export function SettingsModal({
                 />
               </label>
               <label className="settings-field">
-                <span>Concurrent downloads</span>
+                <span>{t('settings.concurrentDownloads')}</span>
                 <input
                   type="number"
                   min={1}
@@ -107,7 +109,7 @@ export function SettingsModal({
               </label>
             </div>
             <div className="settings-field">
-              <span>Default download folder</span>
+              <span>{t('settings.defaultDownloadFolder')}</span>
               <div className="flex gap-3">
                 <input
                   value={draft.downloadPath}
@@ -124,17 +126,17 @@ export function SettingsModal({
                     }
                   }}
                 >
-                  Browse
+                  {t('settings.browse')}
                 </Button>
               </div>
             </div>
             <label className="settings-field">
-              <span>Default destination</span>
+              <span>{t('settings.defaultDestination')}</span>
               <Dropdown
                 value={draft.outputTarget}
                 options={[
-                  { value: 'downloadFolder', label: 'Downloads folder' },
-                  { value: 'premiereProject', label: 'Current Premiere project' },
+                  { value: 'downloadFolder', label: t('settings.downloadsFolder') },
+                  { value: 'premiereProject', label: t('settings.currentPremiereProject') },
                 ]}
                 onChange={(event) =>
                   setDraft((current) => ({
@@ -146,12 +148,12 @@ export function SettingsModal({
             </label>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="settings-field">
-                <span>Theme</span>
+                <span>{t('settings.theme')}</span>
                 <Dropdown
                   value={draft.theme}
                   options={[
-                    { value: 'dark', label: 'Dark' },
-                    { value: 'light', label: 'Light' },
+                    { value: 'dark', label: t('settings.dark') },
+                    { value: 'light', label: t('settings.light') },
                   ]}
                   onChange={(event) =>
                     setDraft((current) => ({
@@ -162,7 +164,7 @@ export function SettingsModal({
                 />
               </label>
               <label className="settings-field">
-                <span>Language</span>
+                <span>{t('settings.language')}</span>
                 <Dropdown
                   value={draft.language}
                   options={[
@@ -182,106 +184,110 @@ export function SettingsModal({
               <Checkbox
                 checked={draft.videoOnly}
                 onChange={(event) => setDraft((current) => ({ ...current, videoOnly: event.target.checked }))}
-                label="Video only by default"
+                label={t('settings.videoOnlyDefault')}
               />
               <Checkbox
                 checked={draft.askDownloadPathEachTime}
                 onChange={(event) => setDraft((current) => ({ ...current, askDownloadPathEachTime: event.target.checked }))}
-                label="Ask download path each time"
+                label={t('settings.askDownloadPath')}
               />
               <Checkbox
                 checked={draft.askAudioPathEachTime}
                 onChange={(event) => setDraft((current) => ({ ...current, askAudioPathEachTime: event.target.checked }))}
-                label="Ask audio path each time"
+                label={t('settings.askAudioPath')}
               />
               <Checkbox
                 checked={draft.defaultImportToPremiere}
                 onChange={(event) => setDraft((current) => ({ ...current, defaultImportToPremiere: event.target.checked }))}
-                label="Auto-import when Premiere is ready"
+                label={t('settings.autoImportPremiere')}
               />
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/4 p-4">
               <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
                 <Sparkles className="h-4 w-4 text-[var(--color-main)]" />
-                Apps & browser
+                {t('settings.appsBrowser')}
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+                <div className="flex h-full flex-col rounded-2xl border border-white/8 bg-white/5 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">Premiere Pro</div>
+                      <div className="text-sm font-semibold text-white">{t('settings.premierePro')}</div>
                       <div className="mt-1 text-sm text-[var(--text-muted)]">
                         {integrationLoading
-                          ? 'Checking Premiere setup...'
+                          ? t('settings.checkingPremiere')
                           : conflicts.length > 0
-                            ? 'Older Premiere panels were found. Clean them up, then restart Premiere.'
+                            ? t('settings.premiereConflicts')
                             : premiereDetected
                             ? premiereReady
-                              ? 'Premiere is ready for one-click import.'
-                              : 'Premiere was found. Finish setup to enable imports.'
-                            : 'Premiere was not found on this computer.'}
+                              ? t('settings.premiereReady')
+                              : t('settings.premiereFinishSetup')
+                            : t('settings.premiereNotFound')}
                       </div>
                     </div>
                     {premiereReady ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Wand2 className="h-5 w-5 text-sky-200" />}
                   </div>
-                  <Button
-                    className="mt-4 w-full"
-                    variant="secondary"
-                    disabled={integrationLoading || !premiereDetected || integrationBusy !== null}
-                    icon={integrationBusy === 'premiere' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                    onClick={() => {
-                      void onInstallPremiere();
-                    }}
-                  >
-                    {premiereReady ? 'Refresh Premiere setup' : 'Set up Premiere'}
-                  </Button>
-                  {integrationStatus?.cepInstallPath ? (
+                  <div className="mt-4 flex flex-col gap-3 pt-2">
                     <Button
-                      className="mt-3 w-full"
-                      variant="ghost"
-                      icon={<FolderOpen className="h-4 w-4" />}
+                      className="w-full"
+                      variant="secondary"
+                      disabled={integrationLoading || !premiereDetected || integrationBusy !== null}
+                      icon={integrationBusy === 'premiere' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
                       onClick={() => {
-                        void onRevealPath(integrationStatus.cepInstallPath!);
+                        void onInstallPremiere();
                       }}
                     >
-                      Open panel folder
+                      {premiereReady ? t('settings.refreshPremiereSetup') : t('settings.setupPremiere')}
                     </Button>
-                  ) : null}
+                    {integrationStatus?.cepInstallPath ? (
+                      <Button
+                        className="w-full"
+                        variant="ghost"
+                        icon={<FolderOpen className="h-4 w-4" />}
+                        onClick={() => {
+                          void onRevealPath(integrationStatus.cepInstallPath!);
+                        }}
+                      >
+                        {t('settings.openPanelFolder')}
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+                <div className="flex h-full flex-col rounded-2xl border border-white/8 bg-white/5 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">Chrome extension</div>
+                      <div className="text-sm font-semibold text-white">{t('settings.chromeExtension')}</div>
                       <div className="mt-1 text-sm text-[var(--text-muted)]">
                         {integrationLoading
-                          ? 'Checking browser setup...'
+                          ? t('settings.checkingBrowser')
                           : browserReady
-                            ? 'The extension folder is ready to load in Chrome.'
+                            ? t('settings.browserReady')
                             : chromeDetected
-                              ? 'Prepare the extension folder, then add it in Chrome.'
-                              : 'Prepare the extension folder, then add it in any Chromium browser.'}
+                              ? t('settings.browserDetected')
+                              : t('settings.browserNotDetected')}
                       </div>
                     </div>
                     {browserReady ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Puzzle className="h-5 w-5 text-sky-200" />}
                   </div>
-                  <Button
-                    className="mt-4 w-full"
-                    variant="secondary"
-                    disabled={integrationLoading || integrationBusy !== null}
-                    icon={integrationBusy === 'browser' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Puzzle className="h-4 w-4" />}
-                    onClick={() => {
-                      void onOpenBrowserSetup();
-                    }}
-                  >
-                    {browserReady ? 'Open extension folder' : 'Prepare browser extension'}
-                  </Button>
+                  <div className="mt-4 flex flex-col gap-3 pt-2">
+                    <Button
+                      className="w-full"
+                      variant="secondary"
+                      disabled={integrationLoading || integrationBusy !== null}
+                      icon={integrationBusy === 'browser' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Puzzle className="h-4 w-4" />}
+                      onClick={() => {
+                        void onOpenBrowserSetup();
+                      }}
+                    >
+                      {browserReady ? t('settings.openExtensionFolder') : t('settings.prepareBrowserExtension')}
+                    </Button>
+                  </div>
                 </div>
               </div>
               {conflicts.length > 0 ? (
                 <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4">
                   <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-100">
                     <AlertTriangle className="h-4 w-4" />
-                    Older Premiere panels need cleanup
+                    {t('settings.olderPanelsNeedCleanup')}
                   </div>
                   <div className="space-y-3">
                     {conflicts.map((conflict) => (
@@ -292,7 +298,7 @@ export function SettingsModal({
                         <div className="font-medium text-white">{conflict.id}</div>
                         <div className="mt-1 break-all">{conflict.reason}</div>
                         <div className="mt-1 break-all text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                          {conflict.scope} CEP folder
+                          {conflict.scope} {t('settings.cepFolder')}
                         </div>
                         <div className="mt-1 break-all text-xs text-[var(--text-muted)]">{conflict.path}</div>
                         <Button
@@ -304,7 +310,7 @@ export function SettingsModal({
                             void onRevealPath(conflict.path);
                           }}
                         >
-                          Open folder
+                          {t('settings.openFolder')}
                         </Button>
                       </div>
                     ))}
@@ -332,7 +338,7 @@ export function SettingsModal({
             variant="ghost"
             onClick={onClose}
           >
-            Cancel
+            {t('settings.cancel')}
           </Button>
           <Button
             disabled={saving}
@@ -346,7 +352,7 @@ export function SettingsModal({
               }
             }}
           >
-            Save settings
+            {t('settings.saveSettings')}
           </Button>
         </div>
       </div>

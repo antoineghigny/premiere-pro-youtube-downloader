@@ -4,7 +4,7 @@
 @layer base {
   body {
     @apply font-epilogue bg-white text-black;
-    width: 320px;
+    width: 352px;
   }
 }
 

@@ -73,6 +73,10 @@ jobs:
             throw 'Legacy WebSocket host permissions detected in extension/dist/manifest.json'
           }
 
+          if (-not (Select-String -Quiet -Path $manifestFile -Pattern '"key"\s*:')) {
+            throw 'Stable extension key is missing from extension/dist/manifest.json'
+          }
+
       - name: Build desktop bundle
         working-directory: desktop
         run: npm run tauri:build

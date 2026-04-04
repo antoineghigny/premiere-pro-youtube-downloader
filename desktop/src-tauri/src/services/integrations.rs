@@ -60,6 +60,9 @@ pub fn run_startup_setup(state: &AppState) -> Result<(), String> {
     }
 
     write_install_path_registry()?;
+    if resolve_browser_source_dir(state).is_some() {
+        let _ = sync_browser_addon(state)?;
+    }
 
     if detect_premiere_installed() {
         let _ = install_premiere_panel(state);
@@ -76,7 +79,7 @@ pub fn integration_status(state: &AppState) -> IntegrationStatus {
         premiere_installed: detect_premiere_installed(),
         premiere_panel_installed: premiere_panel_installed(state),
         chrome_installed: detect_chrome_executable().is_some(),
-        browser_addon_ready: browser_addon_ready(),
+        browser_addon_ready: browser_addon_ready(state),
         cep_install_path: cep_install_path.map(|path| path.to_string_lossy().to_string()),
         browser_addon_path: browser_addon_path.map(|path| path.to_string_lossy().to_string()),
         conflicts: detect_cep_conflicts(),
@@ -138,17 +141,24 @@ pub fn open_browser_setup(state: &AppState) -> Result<IntegrationActionResult, S
         return Err("Browser setup is only available on Windows right now".to_string());
     }
 
-    let source_dir = resolve_browser_source_dir(state).ok_or_else(|| {
-        "Could not find the files needed to set up the browser add-on".to_string()
-    })?;
+    let copied = sync_browser_addon(state)?;
     let target_dir = browser_addon_target_dir()?;
-    stage_dir(&source_dir, &target_dir)?;
     open_directory(&target_dir)?;
 
     let _ = open_chrome_extensions();
 
     let status = integration_status(state);
-    let message = "The extension folder is ready. In Chrome, open chrome://extensions, turn on Developer mode, then load the YT2Premiere folder that just opened.".to_string();
+    let message = if copied {
+        format!(
+            "The extension folder was refreshed. In Chrome, open chrome://extensions, turn on Developer mode, then load or reload this exact folder: {}",
+            target_dir.display()
+        )
+    } else {
+        format!(
+            "The extension folder is ready. In Chrome, open chrome://extensions, turn on Developer mode, then load or reload this exact folder: {}",
+            target_dir.display()
+        )
+    };
 
     Ok(IntegrationActionResult {
         success: true,
@@ -176,10 +186,21 @@ fn premiere_panel_installed(state: &AppState) -> bool {
     true
 }
 
-fn browser_addon_ready() -> bool {
-    browser_addon_target_dir()
-        .map(|path| path.join(BROWSER_MARKER_FILE).exists())
-        .unwrap_or(false)
+fn browser_addon_ready(state: &AppState) -> bool {
+    let target_dir = match browser_addon_target_dir() {
+        Ok(path) => path,
+        Err(_) => return false,
+    };
+
+    if !target_dir.join(BROWSER_MARKER_FILE).exists() {
+        return false;
+    }
+
+    if let Some(source_dir) = resolve_browser_source_dir(state) {
+        return directories_match(&source_dir, &target_dir).unwrap_or(false);
+    }
+
+    true
 }
 
 #[derive(Debug, Clone)]
@@ -244,9 +265,17 @@ fn manifest_root() -> PathBuf {
 }
 
 fn cep_target_dir() -> Result<PathBuf, String> {
-    let appdata = env::var("APPDATA")
-        .map_err(|_| "Could not resolve the Windows AppData directory".to_string())?;
-    Ok(PathBuf::from(appdata)
+    let base = if cfg!(target_os = "macos") {
+        let home = env::var("HOME")
+            .map_err(|_| "Could not resolve the home directory".to_string())?;
+        PathBuf::from(home).join("Library").join("Application Support")
+    } else {
+        PathBuf::from(
+            env::var("APPDATA")
+                .map_err(|_| "Could not resolve the AppData directory".to_string())?,
+        )
+    };
+    Ok(base
         .join("Adobe")
         .join("CEP")
         .join("extensions")
@@ -256,22 +285,40 @@ fn cep_target_dir() -> Result<PathBuf, String> {
 fn cep_search_roots() -> Vec<(PathBuf, &'static str)> {
     let mut roots = Vec::new();
 
-    if let Ok(appdata) = env::var("APPDATA") {
-        roots.push((
-            PathBuf::from(appdata).join("Adobe").join("CEP").join("extensions"),
-            "user",
-        ));
-    }
+    if cfg!(target_os = "macos") {
+        if let Ok(home) = env::var("HOME") {
+            roots.push((
+                PathBuf::from(home)
+                    .join("Library")
+                    .join("Application Support")
+                    .join("Adobe")
+                    .join("CEP")
+                    .join("extensions"),
+                "user",
+            ));
+        }
+        let system_path = PathBuf::from("/Library/Application Support/Adobe/CEP/extensions");
+        if system_path.exists() {
+            roots.push((system_path, "system"));
+        }
+    } else {
+        if let Ok(appdata) = env::var("APPDATA") {
+            roots.push((
+                PathBuf::from(appdata).join("Adobe").join("CEP").join("extensions"),
+                "user",
+            ));
+        }
 
-    for key in ["ProgramW6432", "ProgramFiles", "ProgramFiles(x86)"] {
-        if let Some(base) = env::var_os(key) {
-            let candidate = PathBuf::from(base)
-                .join("Common Files")
-                .join("Adobe")
-                .join("CEP")
-                .join("extensions");
-            if !roots.iter().any(|(existing, _)| existing == &candidate) {
-                roots.push((candidate, "system"));
+        for key in ["ProgramW6432", "ProgramFiles", "ProgramFiles(x86)"] {
+            if let Some(base) = env::var_os(key) {
+                let candidate = PathBuf::from(base)
+                    .join("Common Files")
+                    .join("Adobe")
+                    .join("CEP")
+                    .join("extensions");
+                if !roots.iter().any(|(existing, _)| existing == &candidate) {
+                    roots.push((candidate, "system"));
+                }
             }
         }
     }
@@ -372,6 +419,15 @@ fn detect_cep_conflicts() -> Vec<IntegrationConflict> {
 
 fn browser_addon_target_dir() -> Result<PathBuf, String> {
     Ok(app_storage_dir()?.join("chrome-extension"))
+}
+
+fn sync_browser_addon(state: &AppState) -> Result<bool, String> {
+    let source_dir = resolve_browser_source_dir(state).ok_or_else(|| {
+        "Could not find the files needed to set up the browser add-on".to_string()
+    })?;
+    let target_dir = browser_addon_target_dir()?;
+
+    sync_dir_if_marker_changed(&source_dir, &target_dir, Path::new(BROWSER_MARKER_FILE))
 }
 
 fn sync_dir_if_marker_changed(

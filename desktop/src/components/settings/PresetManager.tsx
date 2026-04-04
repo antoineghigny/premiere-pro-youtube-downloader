@@ -1,6 +1,7 @@
 import { Trash2 } from 'lucide-react';
 
 import type { FFmpegPreset } from '../../api/types';
+import { useTranslation } from '../../i18n';
 import { Button } from '../common/Button';
 
 type PresetManagerProps = {
@@ -10,11 +11,13 @@ type PresetManagerProps = {
 };
 
 export function PresetManager({ presets, onLoadPreset, onDeletePreset }: PresetManagerProps) {
+  const t = useTranslation();
+
   return (
     <div className="space-y-3 rounded-3xl border border-white/10 bg-white/4 p-4">
-      <div className="text-sm font-semibold text-white">Saved presets</div>
+      <div className="text-sm font-semibold text-white">{t('presetManager.title')}</div>
       {presets.length === 0 ? (
-        <div className="text-sm text-[var(--text-muted)]">No presets saved yet.</div>
+        <div className="text-sm text-[var(--text-muted)]">{t('presetManager.empty')}</div>
       ) : (
         <div className="space-y-2">
           {presets.map((preset) => (

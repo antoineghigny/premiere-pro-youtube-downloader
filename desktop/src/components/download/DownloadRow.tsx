@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import { FolderOpen, LoaderCircle, RefreshCcw, Trash2 } from 'lucide-react';
 
 import type { DownloadItem } from '../../api/types';
+import { useTranslation } from '../../i18n';
 import { formatBytes, formatElapsed, formatRepresentativeSpeed } from '../../utils/format';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
@@ -18,9 +19,10 @@ type DownloadRowProps = {
 };
 
 export function DownloadRow({ item, onRetry, onRemove, onReveal, onMove }: DownloadRowProps) {
+  const t = useTranslation();
   const isComplete = item.status === 'complete';
   const isRunning = item.status === 'running' || item.status === 'starting';
-  const availabilityLabel = getDownloadAvailabilityLabel(item);
+  const availabilityLabel = getDownloadAvailabilityLabel(item, t);
 
   return (
     <div
@@ -58,7 +60,7 @@ export function DownloadRow({ item, onRetry, onRemove, onReveal, onMove }: Downl
                     : 'neutral'
             }
           >
-            {isComplete ? 'ready' : item.status === 'failed' ? 'failed' : 'running'}
+            {isComplete ? t('download.ready') : item.status === 'failed' ? t('download.failed') : t('download.running')}
           </Badge>
           {isRunning ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/20 bg-sky-400/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-sky-100">
@@ -72,7 +74,7 @@ export function DownloadRow({ item, onRetry, onRemove, onReveal, onMove }: Downl
       <div className="space-y-2">
         <ProgressBar item={item} />
         <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
-          <span>{item.percentageLabel || (item.indeterminate ? 'Working...' : `${item.progress.toFixed(0)}%`)}</span>
+          <span>{item.percentageLabel || (item.indeterminate ? t('download.working') : `${item.progress.toFixed(0)}%`)}</span>
           <span className={clsx(item.status === 'failed' && 'text-red-200')}>
             {item.error || availabilityLabel}
           </span>
@@ -92,7 +94,7 @@ export function DownloadRow({ item, onRetry, onRemove, onReveal, onMove }: Downl
           disabled={!isComplete}
           onClick={() => onReveal(item)}
           icon={<FolderOpen className="h-4 w-4" />}
-          title={isComplete ? 'Open file' : 'Available when the download is complete'}
+          title={isComplete ? t('download.openFile') : t('download.availableWhenComplete')}
         />
         <Button
           size="sm"

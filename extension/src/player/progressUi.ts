@@ -1,17 +1,18 @@
 import type { DownloadProgressState, DownloadStage } from '../api/contracts';
+import { t } from '../i18n';
 
-const STAGE_LABELS: Record<DownloadStage, string> = {
-  preparing: 'Prep',
-  resolving: 'Resolve',
-  downloading: 'DL',
-  clipping: 'Clip',
-  importing: 'Import',
-  complete: 'Done',
-  failed: 'Error',
+const STAGE_KEYS: Record<DownloadStage, string> = {
+  preparing: 'stage.preparing',
+  resolving: 'stage.resolving',
+  downloading: 'stage.downloading',
+  clipping: 'stage.clipping',
+  importing: 'stage.importing',
+  complete: 'stage.complete',
+  failed: 'stage.failed',
 };
 
 export function getStageLabel(stage: DownloadStage): string {
-  return STAGE_LABELS[stage] ?? 'Wait';
+  return t(STAGE_KEYS[stage] ?? 'stage.wait');
 }
 
 export function getProgressLabel(status: DownloadProgressState, currentProgress: number): string {

@@ -1,4 +1,5 @@
 import type { DownloadItem } from '../../api/types';
+import { useTranslation } from '../../i18n';
 import { DownloadRow } from './DownloadRow';
 import { EmptyState } from './EmptyState';
 
@@ -17,11 +18,13 @@ export function DownloadTable({
   onReveal,
   onMove,
 }: DownloadTableProps) {
+  const t = useTranslation();
+
   if (items.length === 0) {
     return (
       <EmptyState
-        title="Paste a supported URL above to start downloading"
-        description="Paste a video link to start a download and track it here."
+        title={t('downloadTable.emptyTitle')}
+        description={t('downloadTable.emptyDescription')}
       />
     );
   }
@@ -29,14 +32,14 @@ export function DownloadTable({
   return (
     <div className="panel-surface space-y-3 px-4 py-4">
       <div className="hidden grid-cols-[72px_minmax(0,1.8fr)_1.25fr_0.65fr_0.7fr_0.5fr_0.5fr_auto] gap-4 px-4 text-[11px] uppercase tracking-[0.24em] text-[var(--text-muted)] xl:grid">
-        <span>Thumb</span>
-        <span>Title</span>
-        <span>Progress</span>
-        <span>Total</span>
-        <span>Speed</span>
-        <span>ETA</span>
-        <span>Elapsed</span>
-        <span className="text-right">Actions</span>
+        <span>{t('downloadTable.thumb')}</span>
+        <span>{t('downloadTable.title')}</span>
+        <span>{t('downloadTable.progress')}</span>
+        <span>{t('downloadTable.total')}</span>
+        <span>{t('downloadTable.speed')}</span>
+        <span>{t('downloadTable.eta')}</span>
+        <span>{t('downloadTable.elapsed')}</span>
+        <span className="text-right">{t('downloadTable.actions')}</span>
       </div>
       <div className="space-y-3">
         {items.map((item) => (

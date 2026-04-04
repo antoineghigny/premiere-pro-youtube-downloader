@@ -55,6 +55,7 @@ const DOWNLOAD_STATUS_RETENTION_MS = 60000;
 const LEGACY_SETTING_KEYS = ['secondsBefore', 'secondsAfter', 'audioOnly', 'downloadMP3', 'clipAudioOnly'];
 
 let cachedBackendPort: number | null = null;
+const EXTENSION_ID_HEADER = 'X-YT2PP-Extension-Id';
 
 setInterval(() => {
   const now = Date.now();
@@ -82,7 +83,7 @@ function createInitialDownloadStatus(): DownloadProgressState {
   return {
     stage: 'preparing',
     indeterminate: true,
-    detail: 'Queueing download',
+    detail: 'Queueing',
     updatedAt: Date.now(),
   };
 }
@@ -132,16 +133,32 @@ function storeBackendPort(port: number): Promise<void> {
 async function scanBackendPorts(): Promise<number> {
   const settled = await Promise.allSettled(BACKEND_PORTS.map((candidate) => pingBackendPortDetailed(candidate)));
   const candidates = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+  const extensionRejectedByDesktop = settled.some(
+    (result) => result.status === 'rejected'
+      && result.reason instanceof Error
+      && /origin not allowed/i.test(result.reason.message)
+  );
+
+  if (candidates.length === 0 && extensionRejectedByDesktop) {
+    throw new Error(
+      'This extension build is not trusted by the desktop app. Open the extension folder from YT2Premiere Desktop and load that folder in Chrome.'
+    );
+  }
+
   return pickPreferredBackend(candidates).port;
 }
 
 async function pingBackendPortDetailed(port: number): Promise<BackendCandidate> {
   const response = await fetch(`${backendBaseUrl(port)}/`, {
     method: 'GET',
+    headers: {
+      [EXTENSION_ID_HEADER]: chrome.runtime.id,
+    },
     signal: AbortSignal.timeout(800),
   });
   if (!response.ok) {
-    throw new Error(`Port ${port} is unavailable`);
+    const payload = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(typeof payload.error === 'string' ? payload.error : `Port ${port} is unavailable`);
   }
 
   return parseBackendCandidate(port, (await response.json()) as BackendHealthPayload);
@@ -173,11 +190,22 @@ async function discoverBackendPort(forceRefresh = false): Promise<number> {
   return port;
 }
 
+function withExtensionHeaders(init?: RequestInit): RequestInit {
+  const headers = new Headers(init?.headers);
+  headers.set(EXTENSION_ID_HEADER, chrome.runtime.id);
+
+  return {
+    ...init,
+    headers,
+  };
+}
+
 async function fetchBackend(path: string, init?: RequestInit, allowRetry = true): Promise<Response> {
   const port = await discoverBackendPort();
+  const requestInit = withExtensionHeaders(init);
 
   try {
-    return await fetch(`${backendBaseUrl(port)}${path}`, init);
+    return await fetch(`${backendBaseUrl(port)}${path}`, requestInit);
   } catch (error) {
     if (!allowRetry) {
       throw error;
@@ -185,7 +213,7 @@ async function fetchBackend(path: string, init?: RequestInit, allowRetry = true)
 
     cachedBackendPort = null;
     const fallbackPort = await discoverBackendPort(true);
-    return fetch(`${backendBaseUrl(fallbackPort)}${path}`, init);
+    return fetch(`${backendBaseUrl(fallbackPort)}${path}`, requestInit);
   }
 }
 
@@ -334,18 +362,11 @@ function saveStoredSettings(settings: ExtensionSettings): Promise<void> {
 async function postJson(path: string, payload: object): Promise<Response> {
   return fetchBackend(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(payload),
   });
-}
-
-async function syncSettingsToBackend(settings: ExtensionSettings): Promise<boolean> {
-  try {
-    const response = await postJson('/settings', settings);
-    return response.ok;
-  } catch {
-    return false;
-  }
 }
 
 async function checkBackendHealth(): Promise<boolean> {
@@ -424,7 +445,7 @@ async function startDownload(sender: chrome.runtime.MessageSender, request: Down
 
     if (!response.success && response.folderSelectionRequired) {
       const pickedFolder = await pickFolder(
-        'Choose a folder for this download',
+        'Download folder',
         String(request.downloadPath ?? '')
       );
       if (pickedFolder.cancelled) {
@@ -483,8 +504,7 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendRespo
 
       case 'SAVE_SETTINGS': {
         await saveStoredSettings(message.settings);
-        const backendSynced = await syncSettingsToBackend(message.settings);
-        sendResponse({ success: true, backendSynced });
+        sendResponse({ success: true, backendSynced: false });
         return;
       }
 

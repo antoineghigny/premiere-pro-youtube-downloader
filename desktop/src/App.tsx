@@ -13,8 +13,10 @@ import {
   type DesktopSettings,
   type FFmpegOptions,
   type FFmpegPreset,
+  type IntegrationActionResponse,
   type IntegrationStatus,
 } from './api/types';
+import { createT, type TFunction, TranslationProvider } from './i18n';
 import { ClipPanel } from './components/download/ClipPanel';
 import { DownloadGrid } from './components/download/DownloadGrid';
 import { DownloadTable } from './components/download/DownloadTable';
@@ -33,6 +35,26 @@ import { isLikelyRemoteUrl, parseTimecode } from './utils/validation';
 
 function buildPresetName(options: FFmpegOptions) {
   return `${options.outputFormat.toUpperCase()} / ${options.videoCodec.toUpperCase()} / ${options.audioCodec.toUpperCase()}`;
+}
+
+function buildPremiereIntegrationMessage(t: TFunction, result: IntegrationActionResponse): string {
+  if (result.status.conflicts.length > 0) {
+    return t('settings.premiereActionConflicts');
+  }
+
+  if (result.status.premierePanelInstalled) {
+    return t('settings.premiereActionReady');
+  }
+
+  return result.message;
+}
+
+function buildBrowserIntegrationMessage(t: TFunction, result: IntegrationActionResponse): string {
+  if (result.status.browserAddonReady) {
+    return t('settings.browserActionReady');
+  }
+
+  return result.message;
 }
 
 export default function App() {
@@ -60,6 +82,7 @@ export default function App() {
     importToPremiere: settings.defaultImportToPremiere && premiereReady,
   });
 
+  const t = useMemo(() => createT(settings.language), [settings.language]);
   const { info, loading: infoLoading, error: infoError } = useVideoInfo(url);
 
   useEffect(() => {
@@ -137,14 +160,14 @@ export default function App() {
     }
 
     if (!isLikelyRemoteUrl(normalizedUrl)) {
-      setUrlError('Enter a valid http(s) URL before queueing.');
+      setUrlError(t('app.invalidUrl'));
       return;
     }
 
     const clipIn = clipOpen ? parseTimecode(clipStart) : undefined;
     const clipOut = clipOpen ? parseTimecode(clipEnd) : undefined;
     if (clipOpen && (clipIn === undefined || clipOut === undefined || clipOut <= clipIn)) {
-      setUrlError('Enter a valid clip range before queueing.');
+      setUrlError(t('app.invalidClipRange'));
       return;
     }
 
@@ -194,7 +217,7 @@ export default function App() {
   };
 
   const handleSavePreset = async () => {
-    const name = window.prompt('Preset name', buildPresetName(ffmpegOptions));
+    const name = window.prompt(t('app.presetNamePrompt'), buildPresetName(ffmpegOptions));
     if (!name) {
       return;
     }
@@ -227,9 +250,9 @@ export default function App() {
     try {
       const result = await installPremiereIntegration();
       setIntegrationStatus(result.status);
-      setIntegrationMessage(result.message);
+      setIntegrationMessage(buildPremiereIntegrationMessage(t, result));
     } catch (error) {
-      setIntegrationMessage(error instanceof Error ? error.message : 'Could not prepare Premiere');
+      setIntegrationMessage(error instanceof Error ? error.message : t('app.couldNotPreparePremiere'));
     } finally {
       setIntegrationBusy(null);
     }
@@ -271,15 +294,16 @@ export default function App() {
     try {
       const result = await openBrowserSetup();
       setIntegrationStatus(result.status);
-      setIntegrationMessage(result.message);
+      setIntegrationMessage(buildBrowserIntegrationMessage(t, result));
     } catch (error) {
-      setIntegrationMessage(error instanceof Error ? error.message : 'Could not prepare the browser extension');
+      setIntegrationMessage(error instanceof Error ? error.message : t('app.couldNotPrepareBrowser'));
     } finally {
       setIntegrationBusy(null);
     }
   };
 
   return (
+    <TranslationProvider value={t}>
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#2a1b5f_0%,rgba(12,13,27,0.98)_36%,#06070e_100%)] px-4 py-4 text-white md:px-6">
       <div className="mx-auto flex h-[calc(100vh-2rem)] max-w-[1680px] flex-col gap-4">
         <TitleBar
@@ -412,5 +436,6 @@ export default function App() {
         onOpenBrowserSetup={handleOpenBrowserSetup}
       />
     </div>
+    </TranslationProvider>
   );
 }

@@ -8,7 +8,10 @@ var os = require('os');
 var path = require('path');
 
 var execPath = path.join(__dirname, 'exec');
-var activePortFile = path.join(process.env.APPDATA || '', 'YT2Premiere', 'active_port.json');
+var appDataDir = os.platform() === 'darwin'
+    ? path.join(os.homedir(), 'Library', 'Application Support')
+    : (process.env.APPDATA || '');
+var activePortFile = path.join(appDataDir, 'YT2Premiere', 'active_port.json');
 
 function readActiveBackendDescriptor() {
     try {

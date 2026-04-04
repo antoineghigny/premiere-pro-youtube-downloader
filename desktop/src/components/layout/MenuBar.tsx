@@ -1,6 +1,7 @@
 import { Layers3, ListFilter } from 'lucide-react';
 
 import type { ViewMode } from '../../api/types';
+import { useTranslation } from '../../i18n';
 import { Button } from '../common/Button';
 import { ViewToggle } from '../download/ViewToggle';
 
@@ -21,6 +22,8 @@ export function MenuBar({
   onClearCompleted,
   onClearHistory,
 }: MenuBarProps) {
+  const t = useTranslation();
+
   return (
     <div className="panel-surface flex flex-wrap items-center gap-3 px-4 py-3">
       <ViewToggle
@@ -32,7 +35,7 @@ export function MenuBar({
         <input
           value={filterText}
           onChange={(event) => onFilterChange(event.target.value)}
-          placeholder="Filter title or URL..."
+          placeholder={t('menuBar.filterPlaceholder')}
           className="h-10 w-full rounded-2xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-white outline-none transition focus:border-[var(--color-main)]"
         />
       </div>
@@ -42,7 +45,7 @@ export function MenuBar({
         icon={<Layers3 className="h-4 w-4" />}
         onClick={onClearCompleted}
       >
-        Clear completed
+        {t('menuBar.clearCompleted')}
       </Button>
       <Button
         variant="ghost"
@@ -50,7 +53,7 @@ export function MenuBar({
         icon={<Layers3 className="h-4 w-4" />}
         onClick={onClearHistory}
       >
-        Reset history
+        {t('menuBar.resetHistory')}
       </Button>
     </div>
   );

@@ -1,6 +1,7 @@
 import { Sparkles } from 'lucide-react';
 
 import type { FFmpegOptions, FFmpegPreset, PremiereStatusResponse } from '../../api/types';
+import { useTranslation } from '../../i18n';
 import { Button } from '../common/Button';
 import { Checkbox } from '../common/Checkbox';
 import { Dropdown, type DropdownOption } from '../common/Dropdown';
@@ -16,54 +17,30 @@ const OUTPUT_OPTIONS: DropdownOption[] = [
   { value: 'opus', label: 'Opus' },
 ];
 
-const VIDEO_CODEC_OPTIONS: DropdownOption[] = [
-  { value: 'h264', label: 'H.264' },
-  { value: 'h265', label: 'H.265' },
-  { value: 'vp9', label: 'VP9' },
-  { value: 'av1', label: 'AV1' },
-  { value: 'copy', label: 'Copy stream' },
+const VIDEO_CODEC_OPTIONS_STATIC: Omit<DropdownOption, 'label'>[] = [
+  { value: 'h264' },
+  { value: 'h265' },
+  { value: 'vp9' },
+  { value: 'av1' },
+  { value: 'copy' },
 ];
 
-const AUDIO_CODEC_OPTIONS: DropdownOption[] = [
-  { value: 'aac', label: 'AAC' },
-  { value: 'mp3', label: 'MP3' },
-  { value: 'opus', label: 'Opus' },
-  { value: 'flac', label: 'FLAC' },
-  { value: 'copy', label: 'Copy stream' },
+const AUDIO_CODEC_OPTIONS_STATIC: Omit<DropdownOption, 'label'>[] = [
+  { value: 'aac' },
+  { value: 'mp3' },
+  { value: 'opus' },
+  { value: 'flac' },
+  { value: 'copy' },
 ];
 
-const RESOLUTION_OPTIONS: DropdownOption[] = [
-  { value: 'original', label: 'Original' },
-  { value: 'highest', label: 'Match source' },
-  { value: '2160', label: '4K' },
-  { value: '1440', label: '1440p' },
-  { value: '1080', label: '1080p' },
-  { value: '720', label: '720p' },
-  { value: '480', label: '480p' },
-];
+const BITRATE_VALUES = ['auto', '8M', '20M', '40M'] as const;
+const BITRATE_LABELS: Record<string, string> = { '8M': '8 Mbps', '20M': '20 Mbps', '40M': '40 Mbps' };
 
-const BITRATE_OPTIONS: DropdownOption[] = [
-  { value: 'auto', label: 'Auto' },
-  { value: '8M', label: '8 Mbps' },
-  { value: '20M', label: '20 Mbps' },
-  { value: '40M', label: '40 Mbps' },
-];
+const AUDIO_BITRATE_VALUES = ['auto', '128k', '192k', '256k', '320k'] as const;
+const AUDIO_BITRATE_LABELS: Record<string, string> = { '128k': '128 kbps', '192k': '192 kbps', '256k': '256 kbps', '320k': '320 kbps' };
 
-const AUDIO_BITRATE_OPTIONS: DropdownOption[] = [
-  { value: 'auto', label: 'Auto' },
-  { value: '128k', label: '128 kbps' },
-  { value: '192k', label: '192 kbps' },
-  { value: '256k', label: '256 kbps' },
-  { value: '320k', label: '320 kbps' },
-];
-
-const FRAMERATE_OPTIONS: DropdownOption[] = [
-  { value: 'original', label: 'Original' },
-  { value: '24', label: '24 FPS' },
-  { value: '25', label: '25 FPS' },
-  { value: '30', label: '30 FPS' },
-  { value: '60', label: '60 FPS' },
-];
+const FRAMERATE_VALUES = ['original', '24', '25', '30', '60'] as const;
+const FRAMERATE_LABELS: Record<string, string> = { '24': '24 FPS', '25': '25 FPS', '30': '30 FPS', '60': '60 FPS' };
 
 type FFmpegPanelProps = {
   open: boolean;
@@ -84,14 +61,46 @@ export function FFmpegPanel({
   onSavePreset,
   onLoadPreset,
 }: FFmpegPanelProps) {
+  const t = useTranslation();
+
   if (!open) {
     return null;
   }
 
   const premiereReady = premiereStatus.canImport;
   const premiereLabel = premiereReady
-    ? 'Add to Premiere'
+    ? t('ffmpegPanel.addToPremiere')
     : premiereStatus.reason;
+
+  const codecLabel = (v: string) =>
+    v === 'copy' ? t('ffmpegPanel.copyStream') : v.toUpperCase();
+
+  const videoCodecOptions: DropdownOption[] = VIDEO_CODEC_OPTIONS_STATIC.map(
+    (opt) => ({ value: opt.value, label: codecLabel(opt.value) }),
+  );
+  const audioCodecOptions: DropdownOption[] = AUDIO_CODEC_OPTIONS_STATIC.map(
+    (opt) => ({ value: opt.value, label: codecLabel(opt.value) }),
+  );
+
+  const resolutionOptions: DropdownOption[] = [
+    { value: 'original', label: t('ffmpegPanel.original') },
+    { value: 'highest', label: t('ffmpegPanel.matchSource') },
+    { value: '2160', label: '4K' },
+    { value: '1440', label: '1440p' },
+    { value: '1080', label: '1080p' },
+    { value: '720', label: '720p' },
+    { value: '480', label: '480p' },
+  ];
+
+  const bitrateOptions: DropdownOption[] = BITRATE_VALUES.map(
+    (v) => ({ value: v, label: v === 'auto' ? t('ffmpegPanel.auto') : BITRATE_LABELS[v] ?? v }),
+  );
+  const audioBitrateOptions: DropdownOption[] = AUDIO_BITRATE_VALUES.map(
+    (v) => ({ value: v, label: v === 'auto' ? t('ffmpegPanel.auto') : AUDIO_BITRATE_LABELS[v] ?? v }),
+  );
+  const framerateOptions: DropdownOption[] = FRAMERATE_VALUES.map(
+    (v) => ({ value: v, label: v === 'original' ? t('ffmpegPanel.original') : FRAMERATE_LABELS[v] ?? v }),
+  );
 
   return (
     <div className="panel-surface grid gap-4 px-4 py-4 lg:grid-cols-[repeat(4,minmax(0,1fr))]">
@@ -102,36 +111,36 @@ export function FFmpegPanel({
       />
       <Dropdown
         value={value.videoCodec}
-        options={VIDEO_CODEC_OPTIONS}
+        options={videoCodecOptions}
         onChange={(event) => onChange({ videoCodec: event.target.value })}
       />
       <Dropdown
         value={value.audioCodec}
-        options={AUDIO_CODEC_OPTIONS}
+        options={audioCodecOptions}
         onChange={(event) => onChange({ audioCodec: event.target.value })}
       />
       <Dropdown
         value={value.resolution}
-        options={RESOLUTION_OPTIONS}
+        options={resolutionOptions}
         onChange={(event) => onChange({ resolution: event.target.value })}
       />
       <Dropdown
         value={value.videoBitrate}
-        options={BITRATE_OPTIONS}
+        options={bitrateOptions}
         onChange={(event) => onChange({ videoBitrate: event.target.value })}
       />
       <Dropdown
         value={value.audioBitrate}
-        options={AUDIO_BITRATE_OPTIONS}
+        options={audioBitrateOptions}
         onChange={(event) => onChange({ audioBitrate: event.target.value })}
       />
       <Dropdown
         value={value.frameRate}
-        options={FRAMERATE_OPTIONS}
+        options={framerateOptions}
         onChange={(event) => onChange({ frameRate: event.target.value })}
       />
       <Dropdown
-        placeholder="Load preset"
+        placeholder={t('ffmpegPanel.loadPreset')}
         resetOnSelect
         options={presets.map((preset) => ({
           value: preset.id,
@@ -147,20 +156,20 @@ export function FFmpegPanel({
         <Checkbox
           checked={value.thumbnail}
           onChange={(event) => onChange({ thumbnail: event.target.checked })}
-          label="Save thumbnail"
+          label={t('ffmpegPanel.saveThumbnail')}
         />
         <Checkbox
           checked={value.subtitles}
           onChange={(event) => onChange({ subtitles: event.target.checked })}
-          label="Save subtitles"
+          label={t('ffmpegPanel.saveSubtitles')}
         />
         <div className="w-32">
           <Dropdown
             value={value.subtitleLang}
             options={[
-              { value: 'en', label: 'Subtitles EN' },
-              { value: 'fr', label: 'Subtitles FR' },
-              { value: 'es', label: 'Subtitles ES' },
+              { value: 'en', label: t('ffmpegPanel.subtitlesEn') },
+              { value: 'fr', label: t('ffmpegPanel.subtitlesFr') },
+              { value: 'es', label: t('ffmpegPanel.subtitlesEs') },
             ]}
             onChange={(event) => onChange({ subtitleLang: event.target.value })}
           />
@@ -178,7 +187,7 @@ export function FFmpegPanel({
             icon={<Sparkles className="h-4 w-4" />}
             onClick={onSavePreset}
           >
-            Save preset
+            {t('ffmpegPanel.savePreset')}
           </Button>
         </div>
       </div>

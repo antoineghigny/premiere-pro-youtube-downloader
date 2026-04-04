@@ -1,5 +1,6 @@
 import '../styles/popup.css';
 import { DEFAULT_SETTINGS, type ExtensionSettings } from '../api/contracts';
+import { initLanguage, setLanguage, t } from '../i18n';
 
 type RuntimeResponse = {
   healthy?: boolean;
@@ -27,6 +28,22 @@ function syncToggleOptionStyles() {
   document.querySelectorAll<HTMLElement>('[data-toggle-option]').forEach((option) => {
     const input = option.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
     option.classList.toggle('is-selected', Boolean(input?.checked));
+  });
+}
+
+/** Apply translations to all elements with data-i18n / data-i18n-placeholder attributes. */
+function applyTranslations() {
+  document.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    if (key) {
+      el.textContent = t(key);
+    }
+  });
+  document.querySelectorAll<HTMLElement>('[data-i18n-placeholder]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (key) {
+      (el as HTMLInputElement).placeholder = t(key);
+    }
   });
 }
 
@@ -62,6 +79,12 @@ async function loadSettings() {
     ...items,
   };
 
+  // Apply language from settings
+  if (currentSettings.language) {
+    setLanguage(currentSettings.language);
+    applyTranslations();
+  }
+
   (document.getElementById('resolution') as HTMLSelectElement).value = currentSettings.resolution;
   getDownloadPathInput().value = currentSettings.downloadPath;
   getOutputTargetSelect().value = currentSettings.outputTarget;
@@ -83,13 +106,17 @@ async function saveSettings() {
   await sendRuntimeMessage<{ success?: boolean }>({ type: 'SAVE_SETTINGS', settings: currentSettings });
 
   const btn = document.getElementById('save-btn')!;
-  btn.textContent = 'Saved!';
-  setTimeout(() => (btn.textContent = 'Save Settings'), 1500);
+  const span = btn.querySelector('span[data-i18n]') ?? btn;
+  span.textContent = t('popup.saved');
+  setTimeout(() => (span.textContent = t('popup.saveSettings')), 1500);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   getVideoOnlyCheckbox().addEventListener('change', syncToggleOptionStyles);
   getAskDownloadPathEachTimeCheckbox().addEventListener('change', syncToggleOptionStyles);
+
+  // Initialize language, then translate the popup
+  void initLanguage().then(() => applyTranslations());
 
   void checkStatus();
   void loadSettings().catch(() => {

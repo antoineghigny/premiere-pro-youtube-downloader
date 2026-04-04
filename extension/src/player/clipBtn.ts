@@ -9,6 +9,7 @@ import {
   sendDownloadRequest,
   unsubscribeFromDownload,
 } from '../api/serverApi';
+import { t } from '../i18n';
 import { formatDuration } from '../utils/timeUtils';
 import { getProgressLabel } from './progressUi';
 
@@ -40,8 +41,8 @@ export class ClipButton {
 
   private render() {
     const tooltipText = this.inTime !== null && this.outTime !== null
-      ? `Download Clip (${formatDuration(Math.min(this.inTime, this.outTime), Math.max(this.inTime, this.outTime))})`
-      : 'Download Clip (set IN and OUT first)';
+      ? `${t('player.downloadClip')} (${formatDuration(Math.min(this.inTime, this.outTime), Math.max(this.inTime, this.outTime))})`
+      : t('player.clipSetInOut');
 
     const progressScale = this.state === 'disabled' || this.state === 'ready'
       ? 0
@@ -99,7 +100,7 @@ export class ClipButton {
       let downloadPath = String(settings.downloadPath ?? '').trim();
       if (settings.outputTarget === 'downloadFolder' && settings.askDownloadPathEachTime) {
         const pickedPath = await pickDownloadFolder(
-          'Choose folder for clip downloads',
+          t('folder.clip'),
           downloadPath,
         );
         if (!pickedPath) {
@@ -124,7 +125,7 @@ export class ClipButton {
       this.isActive = true;
       this.state = 'loading';
       this.progress = 0;
-      this.progressLabel = 'Prep';
+      this.progressLabel = t('player.prep');
       this.isIndeterminate = true;
       this.render();
       this.activeRequestId = requestId;
@@ -219,7 +220,7 @@ export class ClipButton {
     this.state = 'error';
     this.isActive = false;
     this.progress = Math.max(this.progress, this.isIndeterminate ? 0 : 18);
-    this.progressLabel = 'Error';
+    this.progressLabel = t('player.error');
     this.isIndeterminate = true;
     this.render();
     setTimeout(() => {

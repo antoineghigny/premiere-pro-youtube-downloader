@@ -1,4 +1,5 @@
 import { getVideoElement } from '../utils/pageUtils';
+import { t } from '../i18n';
 import { formatTime } from '../utils/timeUtils';
 
 // Material Design "first_page" icon (vertical bar + left chevron = "jump to start")
@@ -18,13 +19,13 @@ export class ClipMarkers {
 
     this.inBtn = document.createElement('button');
     this.inBtn.className = 'ytp-button yt2pp-btn yt2pp-in-btn';
-    this.inBtn.title = 'Set clip IN point';
+    this.inBtn.title = t('player.setIn');
     this.inBtn.innerHTML = ICON_IN;
     this.inBtn.addEventListener('click', () => this.setIn());
 
     this.outBtn = document.createElement('button');
     this.outBtn.className = 'ytp-button yt2pp-btn yt2pp-out-btn';
-    this.outBtn.title = 'Set clip OUT point';
+    this.outBtn.title = t('player.setOut');
     this.outBtn.innerHTML = ICON_OUT;
     this.outBtn.addEventListener('click', () => this.setOut());
   }
@@ -72,8 +73,8 @@ export class ClipMarkers {
     this.outBtn.classList.remove('yt2pp-marker-set');
     this.inBtn.innerHTML = ICON_IN;
     this.outBtn.innerHTML = ICON_OUT;
-    this.inBtn.title = 'Set clip IN point';
-    this.outBtn.title = 'Set clip OUT point';
+    this.inBtn.title = t('player.setIn');
+    this.outBtn.title = t('player.setOut');
     this.onChange(null, null);
   }
 }
