@@ -19,16 +19,17 @@ use tokio::{net::TcpListener, process::Child, sync::Mutex};
 use crate::{
     cors,
     models::{download::DownloadStage, runtime::ActiveDownloadState},
+    rate_limit::RateLimiter,
+    request_logger,
     routes,
     services::{history::HistoryService, settings::SettingsService},
     utils::{
         active_port_file_path, backend_instance_kind, resolve_tool_paths, write_json_atomic,
+        cep_heartbeat_ttl_secs,
         ToolPaths, APP_FINGERPRINT, BACKEND_API_VERSION, BACKEND_TRANSPORT, SERVER_PORT_RANGE,
     },
     websocket::{self, WsHub},
 };
-
-const CEP_HEARTBEAT_TTL: i64 = 15;
 
 #[derive(Debug)]
 pub struct CepRegistration {
@@ -64,7 +65,8 @@ impl CepRegistration {
             return None;
         };
 
-        if (Utc::now() - last_heartbeat).num_seconds() > CEP_HEARTBEAT_TTL {
+        // Use configurable heartbeat TTL
+        if (Utc::now() - last_heartbeat).num_seconds() > cep_heartbeat_ttl_secs() {
             return None;
         }
 
@@ -333,6 +335,18 @@ pub async fn serve(state: AppState) -> Result<(), String> {
     let listener = bind_server(&state).await?;
     let port = state.server_port();
 
+    // Initialize rate limiter with periodic cleanup
+    let rate_limiter = Arc::new(tokio::sync::Mutex::new(RateLimiter::new()));
+    let limiter_clone = rate_limiter.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            let mut limiter = limiter_clone.lock().await;
+            limiter.cleanup();
+        }
+    });
+
     let app = Router::new()
         .route(
             "/",
@@ -406,6 +420,11 @@ pub async fn serve(state: AppState) -> Result<(), String> {
             state.clone(),
             cors::enforce_request_origin,
         ))
+        .layer(middleware::from_fn_with_state(
+            rate_limiter.clone(),
+            crate::rate_limit::rate_limit_middleware,
+        ))
+        .layer(middleware::from_fn(request_logger::request_logging_middleware))
         .with_state(state.clone());
 
     tracing::info!("YT2Premiere Rust backend listening on http://127.0.0.1:{port}");

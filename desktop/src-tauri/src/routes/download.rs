@@ -18,6 +18,58 @@ fn normalize_text(value: Option<&str>) -> String {
     value.unwrap_or_default().trim().to_ascii_lowercase()
 }
 
+/// Validates that a URL is safe to pass to yt-dlp.
+/// Rejects potentially dangerous URL schemes that could be exploited.
+fn validate_video_url(url: &str) -> Result<(), String> {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return Err("No video URL".to_string());
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+
+    // Only allow http and https schemes
+    if !lower.starts_with("http://") && !lower.starts_with("https://") {
+        return Err(format!(
+            "Invalid URL scheme. Only http and https are allowed, got: {}",
+            trimmed.split(':').next().unwrap_or("unknown")
+        ));
+    }
+
+    // Reject dangerous schemes that might bypass validation
+    let dangerous_prefixes = [
+        "javascript:",
+        "data:",
+        "file:",
+        "vbscript:",
+        "about:",
+    ];
+
+    for prefix in dangerous_prefixes {
+        if lower.starts_with(prefix) {
+            return Err(format!(
+                "Dangerous URL scheme '{}' is not allowed",
+                prefix.trim_end_matches(':')
+            ));
+        }
+    }
+
+    // Basic URL structure validation
+    if let Ok(parsed) = url::Url::parse(trimmed) {
+        // Reject URLs without a host
+        if parsed.host_str().is_none() {
+            return Err("URL must include a valid host".to_string());
+        }
+
+        // Reject URLs with credentials (potential injection vector)
+        if parsed.username().is_empty() == false || parsed.password().is_some() {
+            return Err("URLs with credentials are not allowed".to_string());
+        }
+    }
+
+    Ok(())
+}
+
 fn normalize_bool(value: Option<bool>) -> bool {
     value.unwrap_or(false)
 }
@@ -130,17 +182,12 @@ pub async fn handle_video_url(
     Json(mut request): Json<DownloadRequest>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<serde_json::Value>)> {
     let video_url = request.video_url.trim().to_string();
-    if video_url.is_empty() {
+
+    // Comprehensive URL validation
+    if let Err(error) = validate_video_url(&video_url) {
         return Err((
             axum::http::StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "No video URL" })),
-        ));
-    }
-    let normalized_scheme = video_url.to_ascii_lowercase();
-    if !normalized_scheme.starts_with("http://") && !normalized_scheme.starts_with("https://") {
-        return Err((
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "A valid http(s) URL is required" })),
+            Json(json!({ "error": error })),
         ));
     }
     if matches!(

@@ -1,4 +1,4 @@
-import { APP_FINGERPRINT, BACKEND_PORTS } from './config';
+import { APP_FINGERPRINT, BACKEND_PORTS, DOWNLOAD_STATUS_RETENTION_MS, DOWNLOAD_CLEANUP_INTERVAL_MS } from './config';
 
 export const BACKEND_API_VERSION = 2;
 export const BACKEND_TRANSPORT = 'rust-desktop';
@@ -59,4 +59,4 @@ export function pickPreferredBackend(candidates: BackendCandidate[]): BackendCan
   })[0];
 }
 
-export { APP_FINGERPRINT, BACKEND_PORTS };
+export { APP_FINGERPRINT, BACKEND_PORTS, DOWNLOAD_STATUS_RETENTION_MS, DOWNLOAD_CLEANUP_INTERVAL_MS };

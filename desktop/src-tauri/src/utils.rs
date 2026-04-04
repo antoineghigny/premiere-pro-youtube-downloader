@@ -15,6 +15,32 @@ pub const APP_FINGERPRINT: &str = "YT2Premiere";
 pub const BACKEND_API_VERSION: u8 = 2;
 pub const BACKEND_TRANSPORT: &str = "rust-desktop";
 pub const SERVER_PORT_RANGE: std::ops::RangeInclusive<u16> = 3001..=3010;
+
+/// CEP heartbeat TTL in seconds. If the CEP panel doesn't send a heartbeat
+/// within this time, it's considered disconnected. Can be overridden via
+/// YT2PP_CEP_HEARTBEAT_TTL environment variable.
+pub fn cep_heartbeat_ttl_secs() -> i64 {
+    std::env::var("YT2PP_CEP_HEARTBEAT_TTL")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(30) // Default: 30 seconds (more generous than 15)
+}
+
+/// Rate limiting configuration
+pub fn rate_limit_window_secs() -> u64 {
+    std::env::var("YT2PP_RATE_LIMIT_WINDOW")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(60)
+}
+
+pub fn rate_limit_max_requests() -> u64 {
+    std::env::var("YT2PP_RATE_LIMIT_MAX")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(100)
+}
+
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -198,6 +224,20 @@ pub fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), Str
             error
         )
     })?;
+
+    // Set restrictive file permissions (read/write for owner only)
+    // On Unix: chmod 600, on Windows: we rely on the file's ACL inheriting from parent
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&temp_path, fs::Permissions::from_mode(0o600)).map_err(|error| {
+            format!(
+                "Could not set permissions for {}: {}",
+                temp_path.display(),
+                error
+            )
+        })?;
+    }
 
     if path.exists() {
         let _ = fs::remove_file(path);

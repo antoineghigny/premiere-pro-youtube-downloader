@@ -2,6 +2,8 @@
 
 mod cors;
 mod models;
+mod rate_limit;
+mod request_logger;
 mod routes;
 mod server;
 mod services;

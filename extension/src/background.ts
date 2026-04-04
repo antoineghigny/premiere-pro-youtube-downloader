@@ -1,5 +1,7 @@
 import {
   BACKEND_PORTS,
+  DOWNLOAD_STATUS_RETENTION_MS,
+  DOWNLOAD_CLEANUP_INTERVAL_MS,
   parseBackendCandidate,
   pickPreferredBackend,
   type BackendCandidate,
@@ -51,7 +53,6 @@ type BackendStartResponse = {
 };
 
 const activeDownloads = new Map<string, ActiveDownload>();
-const DOWNLOAD_STATUS_RETENTION_MS = 60000;
 const LEGACY_SETTING_KEYS = ['secondsBefore', 'secondsAfter', 'audioOnly', 'downloadMP3', 'clipAudioOnly'];
 
 let cachedBackendPort: number | null = null;
@@ -65,7 +66,7 @@ setInterval(() => {
       stopTrackingDownload(id);
     }
   }
-}, 30000);
+}, DOWNLOAD_CLEANUP_INTERVAL_MS);
 
 setInterval(() => {
   if (activeDownloads.size === 0) {
