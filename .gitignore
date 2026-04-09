@@ -3,6 +3,7 @@ dist/
 build/
 .claude/
 extension/dist/
+extension/dist-firefox/
 backend/dist/
 backend/dist_next/
 backend/build/
