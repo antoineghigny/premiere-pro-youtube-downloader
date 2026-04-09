@@ -45,6 +45,9 @@ module.exports = (env = {}) => {
 
               if (targetBrowser === 'firefox') {
                 delete manifest.key;
+                manifest.background = {
+                  scripts: ['background.js'],
+                };
               }
 
               return JSON.stringify(manifest, null, 2);
