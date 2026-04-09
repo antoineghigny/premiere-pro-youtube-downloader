@@ -15,7 +15,8 @@ use serde_json::json;
 
 use crate::server::AppState;
 
-const DEFAULT_EXTENSION_IDS: &str = "noloogahcbofnjjkpbeandcgoldejcic,aidffebbdmdjibggcfkeihnljgambjjd";
+const DEFAULT_EXTENSION_IDS: &str =
+    "noloogahcbofnjjkpbeandcgoldejcic,aidffebbdmdjibggcfkeihnljgambjjd,yt2premiere@yt2premiere.app";
 const TRUSTED_TAURI_ORIGINS: &[&str] = &[
     "tauri://localhost",
     "http://tauri.localhost",
@@ -40,6 +41,22 @@ fn trusted_extension_origins() -> Vec<String> {
             }
         })
         .collect()
+}
+
+fn requests_extension_id_header(request_headers: &HeaderValue) -> bool {
+    request_headers
+        .to_str()
+        .ok()
+        .map(|value| {
+            value
+                .split(',')
+                .any(|header| header.trim().eq_ignore_ascii_case(EXTENSION_ID_HEADER))
+        })
+        .unwrap_or(false)
+}
+
+fn is_firefox_extension_preflight(origin: &str, request_headers: &HeaderValue) -> bool {
+    origin.trim().starts_with("moz-extension://") && requests_extension_id_header(request_headers)
 }
 
 fn is_desktop_request(request: &Request<Body>) -> bool {
@@ -233,7 +250,9 @@ pub async fn enforce_request_origin(
                 );
             };
 
-            if !is_allowed_request_origin(origin) {
+            if !is_allowed_request_origin(origin)
+                && !is_firefox_extension_preflight(origin, &request_headers)
+            {
                 return error_response(
                     StatusCode::FORBIDDEN,
                     "Origin not allowed",
@@ -278,7 +297,7 @@ pub async fn enforce_request_origin(
         );
     }
 
-    if !desktop_request && !cep_request {
+    if !desktop_request && !cep_request && !extension_request {
         if let Some(origin) = origin {
             if !is_allowed_request_origin(origin) {
                 return error_response(
@@ -322,6 +341,30 @@ mod tests {
     fn request_origins_exclude_youtube_pages() {
         assert!(!is_allowed_request_origin("https://www.youtube.com"));
         assert!(!is_allowed_socket_origin("https://www.youtube.com"));
+    }
+
+    #[test]
+    fn firefox_distribution_id_is_trusted() {
+        assert!(is_trusted_extension_id("yt2premiere@yt2premiere.app"));
+    }
+
+    #[test]
+    fn firefox_preflight_is_allowed_when_extension_header_is_requested() {
+        let request_headers = HeaderValue::from_static("content-type, x-yt2pp-extension-id");
+        assert!(is_firefox_extension_preflight(
+            "moz-extension://8f14e45f-ea4d-4bd5-9eb4-d4f1f9abce10",
+            &request_headers
+        ));
+    }
+
+    #[test]
+    fn trusted_extension_request_accepts_firefox_distribution_id() {
+        let request = Request::builder()
+            .header(EXTENSION_ID_HEADER, "yt2premiere@yt2premiere.app")
+            .body(Body::empty())
+            .expect("request");
+
+        assert!(trusted_extension_request(&request));
     }
 
     #[test]

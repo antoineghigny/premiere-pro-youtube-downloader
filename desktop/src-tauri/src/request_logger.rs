@@ -72,7 +72,9 @@ fn identify_client(request: &Request<Body>) -> &'static str {
     // Check origin for WebSocket connections
     if let Some(origin) = request.headers().get("origin") {
         if let Ok(origin_str) = origin.to_str() {
-            if origin_str.starts_with("chrome-extension://") {
+            if origin_str.starts_with("chrome-extension://")
+                || origin_str.starts_with("moz-extension://")
+            {
                 return "extension";
             }
             if origin_str.starts_with("tauri://") || origin_str.starts_with("http://tauri.localhost") || origin_str.starts_with("https://tauri.localhost") {

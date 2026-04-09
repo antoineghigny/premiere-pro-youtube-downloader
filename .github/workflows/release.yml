@@ -59,11 +59,16 @@ jobs:
         working-directory: extension
         run: npm run build
 
+      - name: Build Firefox extension
+        working-directory: extension
+        run: npm run build:firefox
+
       - name: Guard extension artifact
         shell: pwsh
         run: |
           $backgroundBundle = 'extension/dist/background.js'
           $manifestFile = 'extension/dist/manifest.json'
+          $firefoxManifestFile = 'extension/dist-firefox/manifest.json'
 
           if (Select-String -Quiet -Path $backgroundBundle -Pattern 'socket\.io-client|Could not subscribe to download events|127\.0\.0\.1:3001') {
             throw 'Legacy extension runtime detected in extension/dist/background.js'
@@ -77,6 +82,14 @@ jobs:
             throw 'Stable extension key is missing from extension/dist/manifest.json'
           }
 
+          if (Select-String -Quiet -Path $firefoxManifestFile -Pattern '"key"\s*:') {
+            throw 'Firefox manifest must not contain the Chrome extension key'
+          }
+
+          if (-not (Select-String -Quiet -Path $firefoxManifestFile -Pattern '"browser_specific_settings"\s*:')) {
+            throw 'Firefox manifest is missing browser_specific_settings'
+          }
+
       - name: Build desktop bundle
         working-directory: desktop
         run: npm run tauri:build
@@ -86,16 +99,23 @@ jobs:
         run: |
           $releaseDir = Join-Path $PWD 'dist\release'
           $chromeExtensionDir = Join-Path $PWD 'dist\chrome-extension'
+          $firefoxExtensionDir = Join-Path $PWD 'dist\firefox-extension'
           $cepExtensionDir = Join-Path $PWD 'dist\cep-extension'
 
-          Remove-Item -Recurse -Force $releaseDir, $chromeExtensionDir, $cepExtensionDir -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path $releaseDir, $chromeExtensionDir, $cepExtensionDir | Out-Null
+          Remove-Item -Recurse -Force $releaseDir, $chromeExtensionDir, $firefoxExtensionDir, $cepExtensionDir -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $releaseDir, $chromeExtensionDir, $firefoxExtensionDir, $cepExtensionDir | Out-Null
 
           Copy-Item 'extension/dist/*' $chromeExtensionDir -Recurse
+          Copy-Item 'extension/dist-firefox/*' $firefoxExtensionDir -Recurse
           Copy-Item 'cep-extension/*' $cepExtensionDir -Recurse
 
           Compress-Archive -Path (Join-Path $chromeExtensionDir '*') -DestinationPath (Join-Path $releaseDir 'YT2Premiere-chrome-extension.zip') -Force
+          Compress-Archive -Path (Join-Path $firefoxExtensionDir '*') -DestinationPath (Join-Path $releaseDir 'YT2Premiere-firefox-extension.zip') -Force
           Compress-Archive -Path (Join-Path $cepExtensionDir '*') -DestinationPath (Join-Path $releaseDir 'YT2Premiere-cep-extension.zip') -Force
+
+          Get-ChildItem 'desktop/src-tauri/target/release/bundle/nsis/*-setup.exe' | ForEach-Object {
+            Copy-Item $_.FullName $releaseDir -Force
+          }
 
           Get-ChildItem 'desktop/src-tauri/target/release/bundle/msi/*.msi' | ForEach-Object {
             Copy-Item $_.FullName $releaseDir -Force
@@ -136,5 +156,7 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" release-assets/* --clobber
           else
-            gh release create "$tag" release-assets/* --generate-notes --title "$tag"
+            gh release create "$tag" --draft --generate-notes --title "$tag"
+            gh release upload "$tag" release-assets/* --clobber
+            gh release edit "$tag" --draft=false
           fi

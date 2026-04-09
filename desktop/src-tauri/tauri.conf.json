@@ -28,7 +28,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "dmg", "appimage"],
+    "targets": ["nsis", "msi", "dmg", "appimage"],
     "externalBin": ["binaries/yt-dlp", "binaries/ffmpeg"],
     "resources": ["resources/**/*"],
     "icon": ["icons/icon.ico"]

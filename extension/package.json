@@ -5,8 +5,10 @@
   "private": true,
   "license": "MPL-2.0",
   "scripts": {
-    "build": "webpack --mode production",
-    "dev": "webpack --mode development --watch",
+    "build": "webpack --mode production --env browser=chrome",
+    "build:firefox": "webpack --mode production --env browser=firefox",
+    "dev": "webpack --mode development --watch --env browser=chrome",
+    "dev:firefox": "webpack --mode development --watch --env browser=firefox",
     "test": "vitest run",
     "test:watch": "vitest"
   },
