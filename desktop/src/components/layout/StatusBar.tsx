@@ -1,5 +1,7 @@
 import { AlertCircle, CheckCircle2, CircleDotDashed, Download } from 'lucide-react';
 
+import { useTranslation } from '../../i18n';
+
 type StatusBarProps = {
   totalCount: number;
   activeCount: number;
@@ -50,6 +52,7 @@ export function StatusBar({
   failedPercent,
   queuedPercent,
 }: StatusBarProps) {
+  const t = useTranslation();
   const processedPercent = Math.min(100, Math.max(0, completedPercent));
   const hasItems = totalCount > 0;
 
@@ -59,39 +62,39 @@ export function StatusBar({
         <div className="flex flex-wrap items-center gap-2">
           <StatChip
             icon={<Download className="h-3.5 w-3.5" />}
-            label="downloads"
+            label={t('statusBar.downloads')}
             value={totalCount}
           />
           <StatChip
             icon={<CircleDotDashed className="h-3.5 w-3.5" />}
-            label="active"
+            label={t('statusBar.active')}
             value={activeCount}
             tone="blue"
           />
           <StatChip
             icon={<CheckCircle2 className="h-3.5 w-3.5" />}
-            label="done"
+            label={t('statusBar.done')}
             value={completedCount}
             tone="green"
           />
           <StatChip
             icon={<AlertCircle className="h-3.5 w-3.5" />}
-            label="errors"
+            label={t('statusBar.errors')}
             value={failedCount}
             tone="red"
           />
           {queuedCount > 0 ? (
             <div className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[0.035] px-3 py-1.5 text-xs text-[var(--text-muted)]">
               <span>{queuedCount}</span>
-              <span>queued</span>
+              <span>{t('statusBar.queued')}</span>
             </div>
           ) : null}
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-            <span>Queue</span>
-            <span>{hasItems ? `${processedPercent.toFixed(0)}% processed` : 'No downloads yet'}</span>
+            <span>{t('statusBar.queue')}</span>
+            <span>{hasItems ? t('statusBar.processed', { percent: processedPercent.toFixed(0) }) : t('statusBar.noDownloads')}</span>
           </div>
 
           <div className="overflow-hidden rounded-full border border-white/8 bg-white/[0.045]">
@@ -127,9 +130,9 @@ export function StatusBar({
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--text-muted)]">
-            <span>Green = done</span>
-            <span>Blue = downloading</span>
-            <span>Red = errors</span>
+            <span>{t('statusBar.legendDone')}</span>
+            <span>{t('statusBar.legendDownloading')}</span>
+            <span>{t('statusBar.legendErrors')}</span>
           </div>
         </div>
       </div>

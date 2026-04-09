@@ -1,4 +1,5 @@
 import './styles/content.css';
+import { initLanguage } from './i18n';
 import { ControlBar } from './player/controlBar';
 import { getVideoId, isVideoPage } from './utils/pageUtils';
 
@@ -35,9 +36,11 @@ function checkUrlChange() {
   }
 }
 
-// Initial setup
-lastUrl = window.location.href;
-init();
+// Initialize i18n, then set up controls
+void initLanguage().then(() => {
+  lastUrl = window.location.href;
+  init();
+});
 
 // Poll for URL changes (YouTube SPA navigation)
 checkInterval = setInterval(checkUrlChange, 500);

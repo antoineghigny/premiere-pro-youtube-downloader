@@ -1,6 +1,7 @@
 import { FolderOpen, LoaderCircle, RefreshCcw, Trash2 } from 'lucide-react';
 
 import type { DownloadItem } from '../../api/types';
+import { useTranslation } from '../../i18n';
 import { formatRepresentativeSpeed } from '../../utils/format';
 import { Button } from '../common/Button';
 import { getDownloadAvailabilityLabel } from './downloadLabels';
@@ -14,9 +15,10 @@ type DownloadCardProps = {
 };
 
 export function DownloadCard({ item, onRetry, onRemove, onReveal }: DownloadCardProps) {
+  const t = useTranslation();
   const isComplete = item.status === 'complete';
   const isRunning = item.status === 'running' || item.status === 'starting';
-  const runningLabel = getDownloadAvailabilityLabel(item);
+  const runningLabel = getDownloadAvailabilityLabel(item, t);
 
   return (
     <div className="group panel-surface overflow-hidden p-0">
@@ -52,9 +54,9 @@ export function DownloadCard({ item, onRetry, onRemove, onReveal }: DownloadCard
             icon={<FolderOpen className="h-4 w-4" />}
             disabled={!isComplete}
             onClick={() => onReveal(item)}
-            title={isComplete ? 'Open file' : 'Available when the download is complete'}
+            title={isComplete ? t('download.openFile') : t('download.availableWhenComplete')}
           >
-            {isComplete ? 'Open' : 'Running'}
+            {isComplete ? t('download.open') : t('download.runningLabel')}
           </Button>
           <Button
             variant="ghost"

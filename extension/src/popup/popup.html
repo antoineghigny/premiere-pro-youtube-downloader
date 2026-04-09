@@ -18,7 +18,7 @@
 
   <div class="space-y-4">
     <div>
-      <label class="field-label" for="resolution">Resolution</label>
+      <label class="field-label" for="resolution" data-i18n="popup.resolution">Resolution</label>
       <select id="resolution" class="field-input">
         <option value="2160">4K (2160p)</option>
         <option value="1440">1440p</option>
@@ -28,15 +28,15 @@
     </div>
 
     <div>
-      <label class="field-label" for="downloadPath">Video / Clip Path</label>
-      <input type="text" id="downloadPath" class="field-input" placeholder="Default download folder">
+      <label class="field-label" for="downloadPath" data-i18n="popup.videoClipPath">Video / Clip Path</label>
+      <input type="text" id="downloadPath" class="field-input" data-i18n-placeholder="popup.downloadPathPlaceholder" placeholder="Default download folder">
     </div>
 
     <div>
-      <label class="field-label" for="outputTarget">Send Downloads To</label>
+      <label class="field-label" for="outputTarget" data-i18n="popup.sendDownloadsTo">Send Downloads To</label>
       <select id="outputTarget" class="field-input">
-        <option value="downloadFolder" selected>Downloads folder</option>
-        <option value="premiereProject">Current Premiere project</option>
+        <option value="downloadFolder" selected data-i18n="popup.downloadsFolder">Downloads folder</option>
+        <option value="premiereProject" data-i18n="popup.premiereProject">Current Premiere project</option>
       </select>
     </div>
 
@@ -45,8 +45,8 @@
         <input type="checkbox" id="videoOnly">
         <span class="checkbox-option__box" aria-hidden="true"></span>
         <span class="checkbox-option__copy">
-          <span class="checkbox-option__title">Video Only</span>
-          <span class="checkbox-option__meta">Skip audio for video downloads and video clips</span>
+          <span class="checkbox-option__title" data-i18n="popup.videoOnly">Video Only</span>
+          <span class="checkbox-option__meta" data-i18n="popup.videoOnlyMeta">Skip audio for video downloads and video clips</span>
         </span>
       </label>
 
@@ -54,14 +54,14 @@
         <input type="checkbox" id="askDownloadPathEachTime">
         <span class="checkbox-option__box" aria-hidden="true"></span>
         <span class="checkbox-option__copy">
-          <span class="checkbox-option__title">Ask Folder Each Time</span>
-          <span class="checkbox-option__meta">Open the OS folder picker before video, clip, and audio downloads</span>
+          <span class="checkbox-option__title" data-i18n="popup.askFolder">Ask Folder Each Time</span>
+          <span class="checkbox-option__meta" data-i18n="popup.askFolderMeta">Open the OS folder picker before video, clip, and audio downloads</span>
         </span>
       </label>
     </div>
 
     <button class="py-button" id="save-btn">
-      <span>Save Settings</span>
+      <span data-i18n="popup.saveSettings">Save Settings</span>
     </button>
   </div>
 

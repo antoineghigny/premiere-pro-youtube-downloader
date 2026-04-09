@@ -9,6 +9,7 @@ import {
   sendDownloadRequest,
   unsubscribeFromDownload,
 } from '../api/serverApi';
+import { t } from '../i18n';
 import { getProgressLabel } from './progressUi';
 
 type ButtonState = 'idle' | 'loading' | 'progress' | 'complete' | 'error';
@@ -28,7 +29,7 @@ export class DownloadButton {
   constructor() {
     this.element = document.createElement('button');
     this.element.className = 'ytp-button yt2pp-btn yt2pp-download-btn';
-    this.element.title = 'Download Video';
+    this.element.title = t('player.downloadVideo');
     this.render();
     this.element.addEventListener('click', () => this.handleClick());
   }
@@ -52,7 +53,7 @@ export class DownloadButton {
       <span class="yt2pp-btn-progress-fill" style="transform: scaleX(${progressScale.toFixed(4)})"></span>
       ${showProgressLabel ? `<span class="yt2pp-btn-progress-label">${progressLabel}</span>` : ''}
       ${ICON_DOWNLOAD}
-      <div class="yt2pp-tooltip">Download Video</div>
+      <div class="yt2pp-tooltip">${t('player.downloadVideo')}</div>
     `;
   }
 
@@ -70,7 +71,7 @@ export class DownloadButton {
       let downloadPath = String(settings.downloadPath ?? '').trim();
       if (settings.outputTarget === 'downloadFolder' && settings.askDownloadPathEachTime) {
         const pickedPath = await pickDownloadFolder(
-          'Choose folder for video downloads',
+          t('folder.video'),
           downloadPath,
         );
         if (!pickedPath) {
@@ -91,7 +92,7 @@ export class DownloadButton {
       this.isActive = true;
       this.state = 'loading';
       this.progress = 0;
-      this.progressLabel = 'Prep';
+      this.progressLabel = t('player.prep');
       this.isIndeterminate = true;
       this.render();
       this.activeRequestId = requestId;
@@ -168,7 +169,7 @@ export class DownloadButton {
     this.state = 'error';
     this.isActive = false;
     this.progress = Math.max(this.progress, this.isIndeterminate ? 0 : 18);
-    this.progressLabel = 'Error';
+    this.progressLabel = t('player.error');
     this.isIndeterminate = true;
     this.render();
     setTimeout(() => this.reset(), 3000);

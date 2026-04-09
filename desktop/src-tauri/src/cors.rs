@@ -25,6 +25,7 @@ const TRUSTED_TAURI_ORIGINS: &[&str] = &[
 ];
 const DESKTOP_AUTH_HEADER: &str = "x-yt2pp-desktop-token";
 const CEP_AUTH_HEADER: &str = "x-yt2pp-cep-token";
+const EXTENSION_ID_HEADER: &str = "x-yt2pp-extension-id";
 
 fn trusted_extension_origins() -> Vec<String> {
     std::env::var("YT2PP_EXTENSION_IDS")
@@ -83,12 +84,44 @@ fn is_allowed_request_origin(origin: &str) -> bool {
     false
 }
 
+fn trusted_extension_ids() -> Vec<String> {
+    std::env::var("YT2PP_EXTENSION_IDS")
+        .unwrap_or_else(|_| DEFAULT_EXTENSION_IDS.to_string())
+        .split(',')
+        .filter_map(|value| {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        })
+        .collect()
+}
+
+fn is_trusted_extension_id(extension_id: &str) -> bool {
+    let normalized = extension_id.trim();
+    !normalized.is_empty()
+        && trusted_extension_ids()
+            .iter()
+            .any(|candidate| candidate == normalized)
+}
+
 fn has_valid_token(request: &Request<Body>, header_name: &str, expected: &str) -> bool {
     request
         .headers()
         .get(header_name)
         .and_then(|value| value.to_str().ok())
         .map(|value| value == expected)
+        .unwrap_or(false)
+}
+
+fn trusted_extension_request(request: &Request<Body>) -> bool {
+    request
+        .headers()
+        .get(EXTENSION_ID_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(is_trusted_extension_id)
         .unwrap_or(false)
 }
 
@@ -147,6 +180,7 @@ pub async fn enforce_request_origin(
 ) -> Response {
     let desktop_request = is_desktop_request(&request);
     let cep_request = is_cep_request(&request);
+    let extension_request = trusted_extension_request(&request);
     let desktop_authenticated =
         desktop_request && has_valid_token(&request, DESKTOP_AUTH_HEADER, state.auth.desktop_token());
     let cep_authenticated =
@@ -187,7 +221,7 @@ pub async fn enforce_request_origin(
             );
         }
 
-        if !desktop_request && !cep_request {
+        if !desktop_request && !cep_request && !extension_request {
             let Some(origin) = origin else {
                 return error_response(
                     StatusCode::FORBIDDEN,
@@ -245,21 +279,21 @@ pub async fn enforce_request_origin(
     }
 
     if !desktop_request && !cep_request {
-        let Some(origin) = origin else {
+        if let Some(origin) = origin {
+            if !is_allowed_request_origin(origin) {
+                return error_response(
+                    StatusCode::FORBIDDEN,
+                    "Origin not allowed",
+                    origin_header,
+                    desktop_request,
+                    cep_request,
+                    request_headers,
+                );
+            }
+        } else if !extension_request {
             return error_response(
                 StatusCode::FORBIDDEN,
                 "Origin required",
-                origin_header,
-                desktop_request,
-                cep_request,
-                request_headers,
-            );
-        };
-
-        if !is_allowed_request_origin(origin) {
-            return error_response(
-                StatusCode::FORBIDDEN,
-                "Origin not allowed",
                 origin_header,
                 desktop_request,
                 cep_request,

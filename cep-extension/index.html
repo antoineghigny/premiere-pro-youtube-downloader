@@ -253,61 +253,61 @@
     <div class="shell">
       <section class="topbar">
         <h1>YT2Premiere</h1>
-        <p class="subcopy">Queue and import status</p>
+        <p class="subcopy" data-i18n="queueAndImport">Queue and import status</p>
       </section>
 
       <section class="status-list">
         <div class="status-row">
-          <div class="status-title">Bridge</div>
+          <div class="status-title" data-i18n="bridge">Bridge</div>
           <div class="pill" id="bridge-state">
             <span class="dot"></span>
-            <span>Starting</span>
+            <span data-i18n="starting">Starting</span>
           </div>
         </div>
-        <div class="status-text">Panel port: <strong id="bridge-port">--</strong></div>
+        <div class="status-text"><span data-i18n="panelPort">Panel port</span>: <strong id="bridge-port">--</strong></div>
 
         <div class="status-row">
-          <div class="status-title">Desktop</div>
+          <div class="status-title" data-i18n="desktop">Desktop</div>
           <div class="pill" id="desktop-state">
             <span class="dot"></span>
-            <span>Waiting</span>
+            <span data-i18n="waiting">Waiting</span>
           </div>
         </div>
-        <div class="status-text">Uses the same queue as the desktop app.</div>
+        <div class="status-text" data-i18n="useSameQueue">Uses the same queue as the desktop app.</div>
 
         <div class="status-row">
-          <div class="status-title">Project</div>
+          <div class="status-title" data-i18n="project">Project</div>
           <div class="pill" id="project-state">
             <span class="dot"></span>
-            <span>Waiting</span>
+            <span data-i18n="waiting">Waiting</span>
           </div>
         </div>
-        <div class="status-text">Checks import readiness automatically.</div>
+        <div class="status-text" data-i18n="checksImport">Checks import readiness automatically.</div>
       </section>
 
       <section class="card">
         <div class="section-head">
-          <h2>Current downloads</h2>
-          <div class="section-note">Live queue</div>
+          <h2 data-i18n="currentDownloads">Current downloads</h2>
+          <div class="section-note" data-i18n="liveQueue">Live queue</div>
         </div>
         <div id="queue-list" class="list">
-          <div class="empty">Waiting for the desktop app...</div>
+          <div class="empty" data-i18n="waitingForDesktopApp">Waiting for the desktop app...</div>
         </div>
       </section>
 
       <section class="card">
         <div class="section-head">
-          <h2>Recent activity</h2>
-          <div class="section-note">Latest results</div>
+          <h2 data-i18n="recentActivity">Recent activity</h2>
+          <div class="section-note" data-i18n="latestResults">Latest results</div>
         </div>
         <div id="history-list" class="list">
-          <div class="empty">Recent results will appear here.</div>
+          <div class="empty" data-i18n="recentResultsHere">Recent results will appear here.</div>
         </div>
       </section>
 
       <div class="error-banner" id="error-banner"></div>
 
-      <div class="hint">
+      <div class="hint" data-i18n="hintReconnect">
         If Premiere was just opened or restarted, give the panel a moment to reconnect.
       </div>
     </div>

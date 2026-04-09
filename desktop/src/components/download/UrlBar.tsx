@@ -1,6 +1,7 @@
 import { Download, FolderOpen, Scissors, SlidersHorizontal, Sparkles } from 'lucide-react';
 
 import type { OutputTarget, VideoInfo } from '../../api/types';
+import { useTranslation } from '../../i18n';
 import { Button } from '../common/Button';
 import { Dropdown } from '../common/Dropdown';
 
@@ -39,6 +40,7 @@ export function UrlBar({
   onPickFolder,
   onSubmit,
 }: UrlBarProps) {
+  const t = useTranslation();
   const showPreview = Boolean(url.trim() || info || infoLoading || infoError);
 
   return (
@@ -54,7 +56,7 @@ export function UrlBar({
                 onSubmit();
               }
             }}
-            placeholder="Paste URL + Enter to queue..."
+            placeholder={t('urlBar.placeholder')}
             className="h-14 w-full rounded-[1.35rem] border border-white/10 bg-white/5 pl-5 pr-48 text-base text-white outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-main)] focus:bg-white/8"
           />
           <div className="absolute right-2 top-2 flex items-center gap-2">
@@ -62,7 +64,7 @@ export function UrlBar({
               type="button"
               onClick={onToggleClip}
               className={clipOpen ? 'toolbar-chip toolbar-chip-active' : 'toolbar-chip'}
-              title="Toggle clip mode"
+              title={t('urlBar.toggleClip')}
             >
               <Scissors className="h-4 w-4" />
             </button>
@@ -70,7 +72,7 @@ export function UrlBar({
               type="button"
               onClick={onToggleFFmpeg}
               className={ffmpegOpen ? 'toolbar-chip toolbar-chip-active' : 'toolbar-chip'}
-              title="Show export options"
+              title={t('urlBar.showExportOptions')}
             >
               <SlidersHorizontal className="h-4 w-4" />
             </button>
@@ -78,7 +80,7 @@ export function UrlBar({
               type="button"
               onClick={onPickFolder}
               className="toolbar-chip"
-              title="Choose download folder"
+              title={t('urlBar.chooseFolder')}
             >
               <FolderOpen className="h-4 w-4" />
             </button>
@@ -89,7 +91,7 @@ export function UrlBar({
             <Dropdown
               value={quality}
               options={[
-                { value: 'highest', label: 'Highest' },
+                { value: 'highest', label: t('urlBar.highest') },
                 { value: '2160', label: '4K' },
                 { value: '1440', label: '1440p' },
                 { value: '1080', label: '1080p' },
@@ -104,8 +106,8 @@ export function UrlBar({
             <Dropdown
               value={outputTarget}
               options={[
-                { value: 'downloadFolder', label: 'Downloads folder' },
-                { value: 'premiereProject', label: 'Premiere project' },
+                { value: 'downloadFolder', label: t('dropdowns.downloadsFolder') },
+                { value: 'premiereProject', label: t('dropdowns.premiereProject') },
               ]}
               onChange={(event) => onOutputTargetChange(event.target.value as OutputTarget)}
               className="h-14"
@@ -116,7 +118,7 @@ export function UrlBar({
             icon={<Download className="h-4 w-4" />}
             onClick={onSubmit}
           >
-            Queue
+            {t('urlBar.queue')}
           </Button>
         </div>
       </div>
@@ -135,14 +137,14 @@ export function UrlBar({
           )}
           <div className="min-w-0 flex-1">
             <div className="text-xs uppercase tracking-[0.24em] text-[var(--text-muted)]">
-              {infoLoading ? 'Resolving metadata...' : infoError ? 'Metadata unavailable' : 'Video preview'}
+              {infoLoading ? t('urlBar.resolvingMetadata') : infoError ? t('urlBar.metadataUnavailable') : t('urlBar.videoPreview')}
             </div>
             <div className="truncate text-base font-semibold text-white">
-              {info?.title || (infoError ? infoError : 'Paste a supported URL to preview title and thumbnail')}
+              {info?.title || (infoError ? infoError : t('urlBar.pasteToPreview'))}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-[var(--text-muted)]">
               {info?.channel ? <span>{info.channel}</span> : null}
-              {info?.duration ? <span>{Math.round(info.duration)} sec</span> : null}
+              {info?.duration ? <span>{Math.round(info.duration)} {t('urlBar.seconds')}</span> : null}
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@ export interface ExtensionSettings {
   askAudioPathEachTime: boolean;
   askDownloadPathEachTime: boolean;
   videoOnly: boolean;
+  language: string;
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -18,6 +19,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   askAudioPathEachTime: false,
   askDownloadPathEachTime: false,
   videoOnly: false,
+  language: '',
 };
 
 export interface DownloadRequest {

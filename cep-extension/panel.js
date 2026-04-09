@@ -1,4 +1,131 @@
 (function () {
+  // ── i18n ──────────────────────────────────────────────────
+  var translations = {
+    en: {
+      queueAndImport: 'Queue and import status',
+      bridge: 'Bridge',
+      desktop: 'Desktop',
+      project: 'Project',
+      starting: 'Starting',
+      waiting: 'Waiting',
+      waitingForDesktop: 'Waiting for desktop',
+      waitingForPremiere: 'Waiting for Premiere',
+      connected: 'Connected',
+      ready: 'Ready',
+      importReady: 'Import ready',
+      unavailable: 'Unavailable',
+      currentDownloads: 'Current downloads',
+      liveQueue: 'Live queue',
+      recentActivity: 'Recent activity',
+      latestResults: 'Latest results',
+      noActiveDownloads: 'No downloads are active right now.',
+      waitingForDesktopApp: 'Waiting for the desktop app...',
+      recentResultsHere: 'Recent results will appear here.',
+      waitingForRecent: 'Waiting for recent downloads...',
+      panelPort: 'Panel port',
+      useSameQueue: 'Uses the same queue as the desktop app.',
+      checksImport: 'Checks import readiness automatically.',
+      hintReconnect: 'If Premiere was just opened or restarted, give the panel a moment to reconnect.',
+      errorPanelCrash: 'The Premiere panel ran into an error. Close and reopen it in Premiere.',
+      errorPanelLoad: 'The Premiere panel could not finish loading. Close and reopen it in Premiere.',
+      errorBridgeUnavailable: 'The panel could not open its local bridge. Close and reopen the panel in Premiere.',
+      errorBridgeStart: 'The Premiere panel could not start correctly.',
+      errorBridgeAccess: 'The Premiere panel could not access its local bridge. Close and reopen it in Premiere.',
+      desktopNotReady: 'Desktop app not ready',
+      stageStarting: 'Starting',
+      stageResolving: 'Resolving media',
+      stageDownloading: 'Downloading',
+      stageClipping: 'Finishing',
+      stageImporting: 'Adding to Premiere',
+      stageDone: 'Done',
+      stageError: 'Error',
+      stageWorking: 'Working',
+      download: 'Download',
+    },
+    fr: {
+      queueAndImport: 'File d\u2019attente et statut d\u2019import',
+      bridge: 'Pont',
+      desktop: 'Bureau',
+      project: 'Projet',
+      starting: 'D\u00e9marrage',
+      waiting: 'En attente',
+      waitingForDesktop: 'En attente du bureau',
+      waitingForPremiere: 'En attente de Premiere',
+      connected: 'Connect\u00e9',
+      ready: 'Pr\u00eat',
+      importReady: 'Import pr\u00eat',
+      unavailable: 'Indisponible',
+      currentDownloads: 'T\u00e9l\u00e9chargements en cours',
+      liveQueue: 'File en direct',
+      recentActivity: 'Activit\u00e9 r\u00e9cente',
+      latestResults: 'Derniers r\u00e9sultats',
+      noActiveDownloads: 'Aucun t\u00e9l\u00e9chargement en cours.',
+      waitingForDesktopApp: 'En attente de l\u2019application bureau\u2026',
+      recentResultsHere: 'Les r\u00e9sultats r\u00e9cents appara\u00eetront ici.',
+      waitingForRecent: 'En attente des t\u00e9l\u00e9chargements r\u00e9cents\u2026',
+      panelPort: 'Port du panneau',
+      useSameQueue: 'Utilise la m\u00eame file que l\u2019application bureau.',
+      checksImport: 'V\u00e9rifie l\u2019import automatiquement.',
+      hintReconnect: 'Si Premiere vient d\u2019\u00eatre ouvert ou red\u00e9marr\u00e9, attendez un instant.',
+      errorPanelCrash: 'Le panneau Premiere a rencontr\u00e9 une erreur. Fermez-le et rouvrez-le.',
+      errorPanelLoad: 'Le panneau Premiere n\u2019a pas pu charger. Fermez-le et rouvrez-le.',
+      errorBridgeUnavailable: 'Le panneau n\u2019a pas pu ouvrir son pont local. Fermez-le et rouvrez-le.',
+      errorBridgeStart: 'Le panneau Premiere n\u2019a pas pu d\u00e9marrer correctement.',
+      errorBridgeAccess: 'Le panneau Premiere n\u2019a pas pu acc\u00e9der \u00e0 son pont local. Fermez-le et rouvrez-le.',
+      desktopNotReady: 'Application bureau non pr\u00eate',
+      stageStarting: 'D\u00e9marrage',
+      stageResolving: 'R\u00e9solution du m\u00e9dia',
+      stageDownloading: 'T\u00e9l\u00e9chargement',
+      stageClipping: 'Finalisation',
+      stageImporting: 'Ajout \u00e0 Premiere',
+      stageDone: 'Termin\u00e9',
+      stageError: 'Erreur',
+      stageWorking: 'En cours',
+      download: 'T\u00e9l\u00e9chargement',
+    },
+  };
+
+  var currentLang = 'en';
+
+  function detectLanguage() {
+    try {
+      var os = require('os');
+      var settingsPath = require('path').join(
+        os.platform() === 'darwin'
+          ? require('path').join(os.homedir(), 'Library', 'Application Support')
+          : (process.env.APPDATA || ''),
+        'YT2Premiere',
+        'settings.json'
+      );
+      var data = JSON.parse(require('fs').readFileSync(settingsPath, 'utf8'));
+      if (data && data.language && translations[data.language]) {
+        currentLang = data.language;
+      }
+    } catch (_e) {
+      // Fall back to browser locale
+      var nav = (typeof navigator !== 'undefined' && navigator.language || '').split('-')[0];
+      if (translations[nav]) {
+        currentLang = nav;
+      }
+    }
+  }
+
+  function i18n(key) {
+    return (translations[currentLang] && translations[currentLang][key]) || translations.en[key] || key;
+  }
+
+  // ── Helpers ───────────────────────────────────────────────
+
+  function getAppDataDir() {
+    try {
+      var os = require('os');
+      if (os.platform() === 'darwin') {
+        return require('path').join(os.homedir(), 'Library', 'Application Support');
+      }
+    } catch (_e) {}
+    return process.env.APPDATA || '';
+  }
+
   function byId(id) {
     return document.getElementById(id);
   }
@@ -91,11 +218,11 @@
   }
 
   window.addEventListener('error', function () {
-    setFatalError('The Premiere panel ran into an error. Close and reopen it in Premiere.');
+    setFatalError(i18n('errorPanelCrash'));
   });
 
   window.addEventListener('unhandledrejection', function () {
-    setFatalError('The Premiere panel could not finish loading. Close and reopen it in Premiere.');
+    setFatalError(i18n('errorPanelLoad'));
   });
 
   function escapeHtml(value) {
@@ -115,17 +242,17 @@
   }
 
   function stageLabel(stage) {
-    var labels = {
-      preparing: 'Starting',
-      resolving: 'Resolving media',
-      downloading: 'Downloading',
-      clipping: 'Finishing',
-      importing: 'Adding to Premiere',
-      complete: 'Done',
-      failed: 'Error'
+    var keys = {
+      preparing: 'stageStarting',
+      resolving: 'stageResolving',
+      downloading: 'stageDownloading',
+      clipping: 'stageClipping',
+      importing: 'stageImporting',
+      complete: 'stageDone',
+      failed: 'stageError'
     };
     var normalized = String(stage || '').toLowerCase();
-    return labels[normalized] || 'Working';
+    return i18n(keys[normalized] || 'stageWorking');
   }
 
   function percentValue(label) {
@@ -178,7 +305,7 @@
   function requestJson(pathname, callback) {
     var backend = readBackendDescriptor();
     if (!backend || !http) {
-      callback(new Error('Desktop app not ready'));
+      callback(new Error(i18n('desktopNotReady')));
       return;
     }
 
@@ -228,8 +355,8 @@
 
     var backend = readBackendDescriptor();
     if (!backend) {
-      setPill(desktopStateNode, 'Waiting', 'warn');
-      setPill(projectStateNode, 'Waiting for desktop', 'warn');
+      setPill(desktopStateNode, i18n('waiting'), 'warn');
+      setPill(projectStateNode, i18n('waitingForDesktop'), 'warn');
       return;
     }
 
@@ -250,17 +377,17 @@
       },
       function (res) {
         res.resume();
-        setPill(desktopStateNode, res.statusCode === 200 ? 'Connected' : 'Waiting', res.statusCode === 200 ? 'ok' : 'warn');
+        setPill(desktopStateNode, res.statusCode === 200 ? i18n('connected') : i18n('waiting'), res.statusCode === 200 ? 'ok' : 'warn');
       }
     );
 
     req.on('error', function () {
-      setPill(desktopStateNode, 'Waiting', 'warn');
+      setPill(desktopStateNode, i18n('waiting'), 'warn');
     });
 
     req.on('timeout', function () {
       req.destroy();
-      setPill(desktopStateNode, 'Waiting', 'warn');
+      setPill(desktopStateNode, i18n('waiting'), 'warn');
     });
 
     req.write(payload);
@@ -269,7 +396,7 @@
 
   function renderQueue(items) {
     if (!items || !items.length) {
-      renderEmpty(queueNode, 'No downloads are active right now.');
+      renderEmpty(queueNode, i18n('noActiveDownloads'));
       return;
     }
 
@@ -319,7 +446,7 @@
 
   function renderHistory(items) {
     if (!items || !items.length) {
-      renderEmpty(historyNode, 'Recent results will appear here.');
+      renderEmpty(historyNode, i18n('recentResultsHere'));
       return;
     }
 
@@ -330,10 +457,10 @@
 
         if (item.status === 'complete') {
           badgeClass = 'badge badge-ok';
-          label = 'Done';
+          label = i18n('stageDone');
         } else if (item.status === 'failed') {
           badgeClass = 'badge badge-error';
-          label = 'Error';
+          label = i18n('stageError');
         }
 
         return (
@@ -341,7 +468,7 @@
           '<div class="item-top">' +
           '<div>' +
           '<div class="item-title">' +
-          escapeHtml(item.title || item.url || 'Download') +
+          escapeHtml(item.title || item.url || i18n('download')) +
           '</div>' +
           '<div class="item-meta">' +
           escapeHtml(item.outputPath || item.url || '') +
@@ -362,19 +489,19 @@
   function refreshPremiereStatus() {
     requestJson('/premiere-status', function (error, data) {
       if (error) {
-        setPill(desktopStateNode, 'Waiting', 'warn');
-        setPill(projectStateNode, 'Waiting for desktop', 'warn');
+        setPill(desktopStateNode, i18n('waiting'), 'warn');
+        setPill(projectStateNode, i18n('waitingForDesktop'), 'warn');
         return;
       }
 
-      setPill(desktopStateNode, data.cepRegistered ? 'Connected' : 'Waiting', data.cepRegistered ? 'ok' : 'warn');
+      setPill(desktopStateNode, data.cepRegistered ? i18n('connected') : i18n('waiting'), data.cepRegistered ? 'ok' : 'warn');
 
       if (data.canImport) {
-        setPill(projectStateNode, data.projectSaved ? 'Ready' : 'Import ready', 'ok');
+        setPill(projectStateNode, data.projectSaved ? i18n('ready') : i18n('importReady'), 'ok');
       } else if (data.reason) {
         setPill(projectStateNode, String(data.reason), data.running ? 'warn' : 'error');
       } else {
-        setPill(projectStateNode, 'Waiting for Premiere', 'warn');
+        setPill(projectStateNode, i18n('waitingForPremiere'), 'warn');
       }
     });
   }
@@ -382,7 +509,7 @@
   function refreshQueue() {
     requestJson('/active-downloads', function (error, data) {
       if (error) {
-        renderEmpty(queueNode, 'Waiting for the desktop app...');
+        renderEmpty(queueNode, i18n('waitingForDesktopApp'));
         return;
       }
       renderQueue(data.items || []);
@@ -392,7 +519,7 @@
   function refreshHistory() {
     requestJson('/history?page=1&pageSize=5', function (error, data) {
       if (error) {
-        renderEmpty(historyNode, 'Waiting for recent downloads...');
+        renderEmpty(historyNode, i18n('waitingForRecent'));
         return;
       }
 
@@ -480,8 +607,8 @@
 
   function listenOnNextPort(index) {
     if (index >= portCandidates.length) {
-      setPill(bridgeStateNode, 'Unavailable', 'error');
-      setFatalError('The panel could not open its local bridge. Close and reopen the panel in Premiere.');
+      setPill(bridgeStateNode, i18n('unavailable'), 'error');
+      setFatalError(i18n('errorBridgeUnavailable'));
       return;
     }
 
@@ -494,14 +621,14 @@
         return;
       }
 
-      setPill(bridgeStateNode, 'Unavailable', 'error');
-      setFatalError('The Premiere panel could not start correctly.');
+      setPill(bridgeStateNode, i18n('unavailable'), 'error');
+      setFatalError(i18n('errorBridgeStart'));
     });
 
     server.listen(port, serverHost, function () {
       currentPanelPort = port;
       setPanelPort(port);
-      setPill(bridgeStateNode, 'Ready', 'ok');
+      setPill(bridgeStateNode, i18n('ready'), 'ok');
       startHeartbeat();
       startRefreshLoop();
     });
@@ -512,20 +639,32 @@
       fs = require('fs');
       http = require('http');
       path = require('path');
-      activePortFile = path.join(process.env.APPDATA || '', 'YT2Premiere', 'active_port.json');
+      activePortFile = path.join(getAppDataDir(), 'YT2Premiere', 'active_port.json');
     } catch (_error) {
-      setFatalError('The Premiere panel could not access its local bridge. Close and reopen it in Premiere.');
+      setFatalError(i18n('errorBridgeAccess'));
       return;
     }
 
+    detectLanguage();
     applyHostTheme();
-    setPill(bridgeStateNode, 'Starting', 'warn');
-    setPill(desktopStateNode, 'Waiting', 'warn');
-    setPill(projectStateNode, 'Waiting for Premiere', 'warn');
+    applyHtmlTranslations();
+    setPill(bridgeStateNode, i18n('starting'), 'warn');
+    setPill(desktopStateNode, i18n('waiting'), 'warn');
+    setPill(projectStateNode, i18n('waitingForPremiere'), 'warn');
     setPanelPort(null);
-    renderEmpty(queueNode, 'Waiting for the desktop app...');
-    renderEmpty(historyNode, 'Recent results will appear here.');
+    renderEmpty(queueNode, i18n('waitingForDesktopApp'));
+    renderEmpty(historyNode, i18n('recentResultsHere'));
     listenOnNextPort(0);
+  }
+
+  /** Translate static text in index.html via data-i18n attributes. */
+  function applyHtmlTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      var key = el.getAttribute('data-i18n');
+      if (key) {
+        el.textContent = i18n(key);
+      }
+    });
   }
 
   if (document.readyState === 'loading') {

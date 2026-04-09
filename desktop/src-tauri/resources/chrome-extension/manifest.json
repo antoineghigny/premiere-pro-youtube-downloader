@@ -27,5 +27,11 @@
   ],
   "icons": {
     "128": "icons/icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "yt2premiere@yt2premiere.app",
+      "strict_min_version": "121.0"
+    }
   }
 }
