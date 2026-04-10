@@ -153,10 +153,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="$GITHUB_REF_NAME"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" release-assets/* --clobber
+          repo="$GITHUB_REPOSITORY"
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            gh release upload "$tag" release-assets/* --repo "$repo" --clobber
           else
-            gh release create "$tag" --draft --generate-notes --title "$tag"
-            gh release upload "$tag" release-assets/* --clobber
-            gh release edit "$tag" --draft=false
+            gh release create "$tag" --repo "$repo" --draft --generate-notes --title "$tag"
+            gh release upload "$tag" release-assets/* --repo "$repo" --clobber
+            gh release edit "$tag" --repo "$repo" --draft=false
           fi
