@@ -103,10 +103,21 @@ The desktop app is the source of truth. The browser extension and Premiere are l
 
 ### Firefox extension
 
+From a release:
+
 1. Download and extract `YT2Premiere-firefox-extension.zip`.
-2. Open `about:debugging#/runtime/this-firefox`.
+2. Launch `YT2Premiere` desktop so the local bridge is running.
+3. Open Firefox and go to `about:debugging#/runtime/this-firefox`.
+4. Click `Load Temporary Add-on...`.
+5. Select the extracted `manifest.json`.
+6. Open YouTube and use the YT2Premiere controls from the player.
+
+From source:
+
+1. Run `cd extension && npm run build:firefox`.
+2. Open Firefox and go to `about:debugging#/runtime/this-firefox`.
 3. Click `Load Temporary Add-on...`.
-4. Select the extracted `manifest.json`.
+4. Select `extension/dist-firefox/manifest.json`.
 
 Firefox still requires AMO signing for permanent installation in standard builds. The release zip is intended for local testing and signing workflows.
 
