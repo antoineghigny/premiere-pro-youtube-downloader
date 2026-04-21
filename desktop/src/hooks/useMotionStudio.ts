@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   getHyperframesArtifact,
@@ -21,6 +21,7 @@ import type {
   SocketEvent,
 } from '../api/types';
 import { useSocket } from './useSocket';
+import { useEvent } from './useEvent';
 
 function upsertJob(
   jobs: ActiveDownloadState[],
@@ -59,7 +60,7 @@ export function useMotionStudio() {
   const subscriptionsRef = useRef<Set<string>>(new Set());
   const designLoadedRef = useRef(false);
 
-  const refreshWorkspace = useEffectEvent(async () => {
+  const refreshWorkspace = useEvent(async () => {
     const [nextContext, nextCatalog, nextArtifacts, nextJobs] = await Promise.all([
       getHyperframesContext(),
       catalog.length > 0 ? Promise.resolve(catalog) : getHyperframesCatalog(),
@@ -106,7 +107,7 @@ export function useMotionStudio() {
     }
   });
 
-  const loadArtifactDetail = useEffectEvent(async (jobId: string) => {
+  const loadArtifactDetail = useEvent(async (jobId: string) => {
     if (!jobId) {
       setSelectedArtifact(null);
       return;
@@ -161,7 +162,7 @@ export function useMotionStudio() {
     void loadArtifactDetail(selectedArtifactId);
   }, [loadArtifactDetail, selectedArtifactId]);
 
-  const handleSocketMessage = useEffectEvent((message: SocketEvent) => {
+  const handleSocketMessage = useEvent((message: SocketEvent) => {
     if (message.jobKind !== 'hyperframes') {
       return;
     }

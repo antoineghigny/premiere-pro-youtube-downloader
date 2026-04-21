@@ -12,7 +12,7 @@ export const Panel: React.FC<PanelProps> = ({ children, className, id }) => {
     <div 
       id={id}
       className={cn(
-        "bg-rv-panel border-t border-l border-rv-border-relief border-b border-r border-rv-border-inset flex flex-col min-h-0",
+        "rv-panel-surface flex flex-col min-h-0",
         className
       )}
     >

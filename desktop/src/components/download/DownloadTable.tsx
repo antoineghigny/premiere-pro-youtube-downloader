@@ -49,20 +49,21 @@ export function DownloadTable({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Table Header */}
-      <div className="flex items-center h-[22px] bg-rv-raised border-b border-rv-border-inset px-2 gap-4 text-[9px] uppercase tracking-wider text-rv-text-disabled select-none shrink-0">
-        <div className="w-[40px] shrink-0" />
-        <div className="flex-1 min-w-0">Title</div>
-        <div className="w-[180px]">Progress</div>
-        <div className="w-[80px] text-right">Size</div>
-        <div className="w-[100px] text-right">Speed</div>
+      <div className="flex items-center h-[26px] bg-rv-raised border-b border-rv-border-inset px-3 gap-4 text-[9px] font-bold uppercase tracking-[0.15em] text-rv-text-disabled select-none shrink-0">
+        <div className="w-[24px] shrink-0" />
+        <div className="w-[44px] shrink-0" />
+        <div className="flex-1 min-w-0">Media Name</div>
+        <div className="w-[140px]">Progress Status</div>
+        <div className="w-[70px] text-right">Size</div>
+        <div className="w-[90px] text-right">Transfer</div>
         <div className="w-[60px] text-right">Time</div>
-        <div className="w-[84px] text-right pr-2">Actions</div>
+        <div className="w-[92px] text-right pr-2">Actions</div>
       </div>
       
       {/* Rows */}
-      <div className="flex-1">
+      <div className="flex-1 overflow-y-auto">
         {items.map((item) => (
           <DownloadRow
             key={item.requestId}

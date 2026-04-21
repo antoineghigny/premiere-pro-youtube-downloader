@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import {
   ApiError,
@@ -22,6 +22,7 @@ import { useDownloadStore } from '../stores/downloadStore';
 import { parsePercentageLabel, parseTransferRate } from '../utils/format';
 import { updateSpeedHistory } from '../utils/speedHistory';
 import { useSocket } from './useSocket';
+import { useEvent } from './useEvent';
 
 type QueueDownloadInput = Omit<DownloadRequestPayload, 'requestId'>;
 
@@ -46,7 +47,7 @@ export function useDownloads(settings: DesktopSettings) {
     hydrateHistory,
   } = useDownloadStore();
 
-  const applyActiveDownloadState = useEffectEvent((download: ActiveDownloadState) => {
+  const applyActiveDownloadState = useEvent((download: ActiveDownloadState) => {
     const currentItem = items.find((item) => item.requestId === download.requestId);
 
     if (download.stage === 'complete') {
@@ -86,7 +87,7 @@ export function useDownloads(settings: DesktopSettings) {
     });
   });
 
-  const syncHistorySnapshot = useEffectEvent(async (pageSize = 100) => {
+  const syncHistorySnapshot = useEvent(async (pageSize = 100) => {
     const response = await getHistory(1, pageSize);
     hydrateHistory(response.items);
   });
@@ -113,9 +114,9 @@ export function useDownloads(settings: DesktopSettings) {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [hydrateHistory]);
+  }, [hydrateHistory, syncHistorySnapshot]);
 
-  const handleSocketMessage = useEffectEvent((message: SocketEvent) => {
+  const handleSocketMessage = useEvent((message: SocketEvent) => {
     if (message.jobKind !== 'download') {
       return;
     }

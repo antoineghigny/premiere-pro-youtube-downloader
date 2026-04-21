@@ -9,8 +9,8 @@ interface PanelHeaderProps {
 
 export const PanelHeader: React.FC<PanelHeaderProps> = ({ children, title, className }) => {
   return (
-    <div className={cn("rv-panel-header", className)}>
-      {title && <span className="flex-1">{title}</span>}
+    <div className={cn("rv-panel-header shrink-0", className)}>
+      {title && <span className="flex-1 truncate">{title}</span>}
       {children}
     </div>
   );

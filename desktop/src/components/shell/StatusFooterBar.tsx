@@ -13,44 +13,44 @@ export const StatusFooterBar: React.FC = () => {
   const summary = buildQueueStatusSummary(items);
   
   return (
-    <div className="h-[22px] bg-rv-raised border-t border-rv-border-inset flex items-center px-2 text-[10px] select-none gap-4">
+    <div className="h-[24px] bg-rv-raised border-t border-rv-border-inset flex items-center px-2 text-[10px] select-none gap-4">
       {/* Queue Summary */}
-      <div className="flex items-center gap-3 border-r border-rv-border-inset pr-4 h-full">
+      <div className="flex items-center gap-4 pr-4 h-full">
         <div className="flex items-center gap-1.5 text-rv-text-muted">
-          <Icon icon={Activity} size={12} className="text-rv-accent" />
-          <span>{summary.activeCount} ACTIVE</span>
+          <Icon icon={Activity} size={12} className={cn(summary.activeCount > 0 ? "text-rv-accent" : "text-rv-text-disabled")} />
+          <span className="font-semibold tracking-wider">{summary.activeCount} ACTIVE</span>
         </div>
         <div className="flex items-center gap-1.5 text-rv-text-muted">
-          <Icon icon={CheckCircle2} size={12} className="text-rv-ok" />
-          <span>{summary.completedCount} DONE</span>
+          <Icon icon={CheckCircle2} size={12} className={cn(summary.completedCount > 0 ? "text-rv-ok" : "text-rv-text-disabled")} />
+          <span className="font-semibold tracking-wider">{summary.completedCount} DONE</span>
         </div>
-        <span className="text-rv-text-disabled">/</span>
-        <span className="text-rv-text-strong font-medium">{summary.totalCount} TOTAL</span>
+        <div className="h-[12px] w-px bg-rv-border-inset" />
+        <span className="text-rv-text-strong font-bold tracking-widest">{summary.totalCount} ITEMS</span>
       </div>
 
       {/* Spacer */}
       <div className="flex-1" />
 
       {/* Backend Status */}
-      <div className="flex items-center gap-1.5 px-2">
-        <Icon icon={Server} size={12} className="text-rv-ok" />
-        <span className="text-rv-text-muted uppercase tracking-tight">Backend:</span>
-        <span className="text-rv-text-strong">CONNECTED</span>
+      <div className="flex items-center gap-2">
+        <div className="w-1.5 h-1.5 rounded-full bg-rv-ok shadow-[0_0_4px_rgba(78,166,78,0.5)]" />
+        <span className="text-rv-text-muted uppercase tracking-[0.1em] text-[9px] font-bold">Backend</span>
+        <span className="text-rv-text-strong font-mono">CONNECTED</span>
       </div>
 
       {/* Premiere Status */}
-      <div className="flex items-center gap-1.5 border-l border-rv-border-inset pl-4 h-full">
+      <div className="flex items-center gap-2 border-l border-rv-border-inset pl-4 h-full">
         <Icon 
           icon={Monitor} 
           size={12} 
           className={cn(premiereRunning ? "text-rv-accent" : "text-rv-text-disabled")} 
         />
-        <span className="text-rv-text-muted uppercase tracking-tight text-[9px]">Adobe Premiere Pro:</span>
+        <span className="text-rv-text-muted uppercase tracking-[0.1em] text-[9px] font-bold">Premiere Pro</span>
         <span className={cn(
-          "font-medium",
+          "font-mono",
           premiereRunning ? "text-rv-text-strong" : "text-rv-text-disabled"
         )}>
-          {premiereRunning ? (projectName || "CONNECTED") : "OFFLINE"}
+          {premiereRunning ? (projectName?.toUpperCase() || "CONNECTED") : "OFFLINE"}
         </span>
       </div>
     </div>

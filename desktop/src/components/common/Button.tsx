@@ -21,12 +21,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
     <button
       ref={ref}
       className={cn(
-        "rv-button gap-1.5",
-        variant === 'primary' && "text-rv-accent border-rv-accent/30",
+        "rv-button gap-1.5 shrink-0",
+        variant === 'primary' && "text-rv-accent border-rv-accent/30 font-semibold",
         variant === 'danger' && "text-rv-error border-rv-error/30",
         variant === 'ghost' && "bg-transparent border-transparent hover:bg-rv-button-hover hover:border-rv-border-inset",
         size === 'sm' && "h-[18px] px-1.5 text-[10px]",
-        size === 'icon' && "w-[22px] p-0 flex items-center justify-center",
+        size === 'icon' && "w-[24px] p-0 flex items-center justify-center",
         active && "rv-button-active",
         className
       )}

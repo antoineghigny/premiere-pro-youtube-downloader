@@ -4,14 +4,19 @@
   "version": "3.0.0",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA8UyDZT3/lopIEZD9H26TofgmuXM8BrysVF/X/rN1tQLr6yZAc3izFWtZUrtJjWZa97mJlhRos5Vhs9vS86ID1Cukp7TV9mNQUJURtTGzIo0NoFCM4/nQUIpLp9GChAZWmEVPjpx4Tik7cvNOf4X2H2QY23IOM5QOKPg7tdUqqp4eqbbV3A3SDQfYgj/+MFm/Wg2M/bQOVkx9phvMF2mWM2gO7HWls9/uBxUwgVFMVfOvo8tjatR9FiiGqb7VHvhNWNIw4m6hz/LQ5LJI3l/NMCEb4dMFlWETgmSHS8q8iUYH6NinmFZ7pcVsZY3cgNxze/Buf9ZmyJ/2wmXFwgMixwIDAQAB",
   "description": "Open-source browser add-on for sending YouTube video, audio, and clip downloads to YT2Premiere desktop",
-  "permissions": ["activeTab", "storage"],
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
   "host_permissions": [
     "https://www.youtube.com/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
   "action": {
-    "default_icon": { "128": "icons/icon128.png" },
+    "default_icon": {
+      "128": "icons/icon128.png"
+    },
     "default_popup": "popup.html"
   },
   "background": {
@@ -19,9 +24,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     }
   ],

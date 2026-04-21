@@ -18,7 +18,7 @@ export function ClipPanel({ enabled, onEnabledChange, start, onStartChange, end,
   const t = useTranslation();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <Checkbox
           checked={enabled}
@@ -30,9 +30,9 @@ export function ClipPanel({ enabled, onEnabledChange, start, onStartChange, end,
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-rv-border-inset">
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-rv-text-muted uppercase flex items-center gap-1">
+      <div className="grid grid-cols-2 gap-3 pt-4 border-t border-rv-border-inset">
+        <div className="flex flex-col gap-2">
+          <label className="rv-label flex items-center gap-1.5">
             <Icon icon={Scissors} size={10} className="text-rv-accent" />
             In Point
           </label>
@@ -41,11 +41,11 @@ export function ClipPanel({ enabled, onEnabledChange, start, onStartChange, end,
             onChange={(e) => onStartChange(e.target.value)}
             placeholder="00:00:00.000"
             disabled={!enabled}
-            className="h-[24px] text-[11px]"
+            className="h-[28px] text-[11px] font-mono"
           />
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-rv-text-muted uppercase flex items-center gap-1">
+        <div className="flex flex-col gap-2">
+          <label className="rv-label flex items-center gap-1.5">
             <Icon icon={Scissors} size={10} className="text-rv-accent" />
             Out Point
           </label>
@@ -54,17 +54,17 @@ export function ClipPanel({ enabled, onEnabledChange, start, onStartChange, end,
             onChange={(e) => onEndChange(e.target.value)}
             placeholder="00:00:30.000"
             disabled={!enabled}
-            className="h-[24px] text-[11px]"
+            className="h-[28px] text-[11px] font-mono"
           />
         </div>
       </div>
 
-      <div className="mt-2 bg-rv-raised p-2 rounded-[2px] border border-rv-border-inset">
-        <h4 className="text-[10px] text-rv-text-strong uppercase tracking-wider mb-1">Timing Guidelines</h4>
-        <ul className="text-[9px] text-rv-text-muted list-disc pl-3 space-y-0.5">
-          <li>Format: HH:MM:SS.mmm</li>
+      <div className="mt-2 bg-[#141414] p-3 rounded-[1px] border border-rv-border-inset shadow-inner">
+        <h4 className="rv-label text-rv-text-strong mb-2">Timing Guidelines</h4>
+        <ul className="text-[10px] text-rv-text-muted list-disc pl-4 space-y-1.5">
+          <li>Format: <span className="font-mono text-rv-accent">HH:MM:SS.mmm</span></li>
           <li>OUT must be greater than IN</li>
-          <li>Partial frames are supported</li>
+          <li>Partial frames are supported via milliseconds</li>
         </ul>
       </div>
     </div>

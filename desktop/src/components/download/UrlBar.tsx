@@ -45,10 +45,10 @@ export function UrlBar({
   const t = useTranslation();
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {/* URL Input */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] text-rv-text-muted uppercase tracking-tight">Source URL</label>
+        <label className="rv-label">Source URL</label>
         <div className="relative group">
           <Icon icon={Link2} size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-rv-text-disabled group-focus-within:text-rv-accent transition-colors" />
           <input
@@ -64,12 +64,12 @@ export function UrlBar({
       <div className="grid grid-cols-2 gap-3">
         {/* Quality */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] text-rv-text-muted uppercase tracking-tight">Resolution</label>
+          <label className="rv-label">Resolution</label>
           <Dropdown
             value={quality}
             options={[
               { value: 'highest', label: t('urlBar.highest') },
-              { value: '2160', label: '4K' },
+              { value: '2160', label: '4K (2160p)' },
               { value: '1440', label: '1440p' },
               { value: '1080', label: '1080p' },
               { value: '720', label: '720p' },
@@ -82,7 +82,7 @@ export function UrlBar({
 
         {/* Target */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] text-rv-text-muted uppercase tracking-tight">Destination</label>
+          <label className="rv-label">Destination</label>
           <Dropdown
             value={outputTarget}
             options={[
@@ -97,12 +97,12 @@ export function UrlBar({
 
       {/* Folder Override */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] text-rv-text-muted uppercase tracking-tight">Folder Override</label>
+        <label className="rv-label">Folder Override</label>
         <div className="flex gap-1">
           <input 
             value={folderOverride}
             onChange={(e) => onFolderOverrideChange(e.target.value)}
-            placeholder={settings.downloadPath}
+            placeholder={settings.downloadPath || "Default downloads folder"}
             className="rv-input flex-1 h-[28px]"
           />
           <Button size="icon" onClick={onPickFolder} title="Browse">
@@ -111,46 +111,21 @@ export function UrlBar({
         </div>
       </div>
 
-      {/* Preview Card */}
-      <div className="mt-2 bg-rv-input/30 border border-rv-border-inset rounded-[2px] overflow-hidden flex flex-col min-h-[140px]">
-        <div className="aspect-video bg-black flex items-center justify-center relative overflow-hidden">
-          {info?.thumbnail ? (
-            <img src={info.thumbnail} alt={info.title} className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <Icon icon={Sparkles} size={24} className="text-rv-text-disabled" />
-          )}
-          {infoLoading && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] uppercase tracking-widest text-rv-text-muted animate-pulse">
-              Resolving...
-            </div>
-          )}
-        </div>
-        <div className="p-2 space-y-1">
-          <div className="text-[11px] font-medium truncate text-rv-text-strong">
-            {info?.title || (infoError ? "Error: " + infoError : "Ready to Queue")}
-          </div>
-          <div className="flex justify-between items-center text-[9px] text-rv-text-muted uppercase tracking-tight">
-            <span>{info?.channel || "Source"}</span>
-            <span>{info?.duration ? Math.round(info.duration) + "s" : ""}</span>
-          </div>
-        </div>
-      </div>
-
       {/* Submit */}
       <Button 
         variant="primary" 
-        className="w-full h-[32px] mt-2 font-semibold tracking-wider"
+        className="w-full h-[32px] mt-2 tracking-widest uppercase text-[11px]"
         onClick={onQueueDownload}
         disabled={!url.trim() || infoLoading}
       >
         <Icon icon={Download} size={14} />
-        QUEUE DOWNLOAD
+        Add to Queue
       </Button>
 
       {/* Alerts/Status */}
       {outputTarget === 'premiereProject' && !premiereStatus.canImport && (
-        <div className="mt-2 text-[10px] bg-rv-error/10 border border-rv-error/30 text-rv-error p-2 rounded-[2px] leading-tight">
-          <strong>IMPORT BLOCKED:</strong> {premiereStatus.reason}
+        <div className="mt-2 text-[10px] bg-rv-error/10 border border-rv-error/30 text-rv-error p-2 rounded-[1px] leading-tight font-medium uppercase">
+          <strong>Import Blocked:</strong> {premiereStatus.reason}
         </div>
       )}
     </div>

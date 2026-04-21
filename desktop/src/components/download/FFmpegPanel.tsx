@@ -33,10 +33,10 @@ export function FFmpegPanel({
   const premiereReady = premiereStatus.canImport;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-rv-text-muted uppercase">Format</label>
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="rv-label">Format</label>
           <Dropdown
             value={options.outputFormat}
             options={OUTPUT_OPTIONS}
@@ -44,8 +44,8 @@ export function FFmpegPanel({
             className="h-[24px]"
           />
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-rv-text-muted uppercase">Video Codec</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="rv-label">Video Codec</label>
           <Dropdown
             value={options.videoCodec}
             options={[
@@ -58,8 +58,8 @@ export function FFmpegPanel({
             className="h-[24px]"
           />
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-rv-text-muted uppercase">Audio Codec</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="rv-label">Audio Codec</label>
           <Dropdown
             value={options.audioCodec}
             options={[
@@ -72,8 +72,8 @@ export function FFmpegPanel({
             className="h-[24px]"
           />
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-rv-text-muted uppercase">Video Bitrate</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="rv-label">Video Bitrate</label>
           <Dropdown
             value={options.videoBitrate}
             options={[
@@ -88,7 +88,7 @@ export function FFmpegPanel({
         </div>
       </div>
 
-      <div className="border-t border-rv-border-inset pt-3 flex flex-col gap-3">
+      <div className="border-t border-rv-border-inset pt-4 flex flex-col gap-3">
         <Checkbox
           checked={options.thumbnail}
           onChange={(e) => onChange({ thumbnail: e.target.checked })}
@@ -100,8 +100,8 @@ export function FFmpegPanel({
           label="Download Subtitles"
         />
         {options.subtitles && (
-          <div className="pl-6 flex flex-col gap-1">
-            <label className="text-[9px] text-rv-text-disabled uppercase">Subtitle Language</label>
+          <div className="pl-6 flex flex-col gap-1.5">
+            <label className="text-[9px] text-rv-text-disabled uppercase font-bold">Subtitle Language</label>
             <Dropdown
               value={options.subtitleLang}
               options={[
@@ -110,7 +110,7 @@ export function FFmpegPanel({
                 { value: 'es', label: 'Spanish' },
               ]}
               onChange={(e) => onChange({ subtitleLang: e.target.value })}
-              className="h-[22px] w-[120px]"
+              className="h-[22px] w-full"
             />
           </div>
         )}
@@ -123,8 +123,8 @@ export function FFmpegPanel({
       </div>
 
       <div className="mt-2">
-        <label className="text-[10px] text-rv-text-muted uppercase mb-1 block">Quick Presets</label>
-        <div className="flex flex-wrap gap-1">
+        <label className="rv-label mb-2 block">Quick Presets</label>
+        <div className="flex flex-wrap gap-1.5">
           {settings.ffmpegPresets.map((preset: any) => (
             <button
               key={preset.id}
