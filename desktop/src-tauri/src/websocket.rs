@@ -12,7 +12,11 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tokio::time::{interval, Duration};
 
-use crate::{cors::is_allowed_socket_origin, models::download::DownloadStage, server::AppState};
+use crate::{
+    cors::is_allowed_socket_origin,
+    models::{download::DownloadStage, runtime::JobKind},
+    server::AppState,
+};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,6 +24,7 @@ pub struct WsEvent {
     #[serde(rename = "type")]
     pub event_type: String,
     pub request_id: String,
+    pub job_kind: JobKind,
     pub stage: Option<DownloadStage>,
     pub percentage: Option<String>,
     pub speed: Option<String>,
@@ -55,6 +60,7 @@ impl WsHub {
     pub fn emit_progress(
         &self,
         request_id: &str,
+        job_kind: JobKind,
         stage: DownloadStage,
         percentage: Option<String>,
         speed: Option<String>,
@@ -65,6 +71,7 @@ impl WsHub {
         let _ = self.sender.send(WsEvent {
             event_type: "progress".to_string(),
             request_id: request_id.to_string(),
+            job_kind,
             stage: Some(stage),
             percentage,
             speed,
@@ -76,10 +83,11 @@ impl WsHub {
         });
     }
 
-    pub fn emit_complete(&self, request_id: &str, path: String) {
+    pub fn emit_complete(&self, request_id: &str, job_kind: JobKind, path: String) {
         let _ = self.sender.send(WsEvent {
             event_type: "complete".to_string(),
             request_id: request_id.to_string(),
+            job_kind,
             stage: Some(DownloadStage::Complete),
             percentage: Some("100.0%".to_string()),
             speed: None,
@@ -91,10 +99,11 @@ impl WsHub {
         });
     }
 
-    pub fn emit_failed(&self, request_id: &str, message: String) {
+    pub fn emit_failed(&self, request_id: &str, job_kind: JobKind, message: String) {
         let _ = self.sender.send(WsEvent {
             event_type: "failed".to_string(),
             request_id: request_id.to_string(),
+            job_kind,
             stage: Some(DownloadStage::Failed),
             percentage: None,
             speed: None,

@@ -1,5 +1,6 @@
 export type DownloadType = 'full' | 'audio' | 'clip';
 export type OutputTarget = 'downloadFolder' | 'premiereProject';
+export type JobKind = 'download' | 'hyperframes';
 
 export type DownloadStage =
   | 'preparing'
@@ -7,6 +8,13 @@ export type DownloadStage =
   | 'downloading'
   | 'clipping'
   | 'importing'
+  | 'context'
+  | 'design'
+  | 'generating'
+  | 'validating'
+  | 'previewReady'
+  | 'rendering'
+  | 'encoding'
   | 'complete'
   | 'failed';
 
@@ -39,6 +47,7 @@ export interface DesktopSettings {
   resolution: string;
   downloadPath: string;
   audioDownloadPath: string;
+  geminiApiKey: string;
   outputTarget: OutputTarget;
   askAudioPathEachTime: boolean;
   askDownloadPathEachTime: boolean;
@@ -68,6 +77,7 @@ export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
   resolution: '1080',
   downloadPath: '',
   audioDownloadPath: '',
+  geminiApiKey: '',
   outputTarget: 'downloadFolder',
   askAudioPathEachTime: false,
   askDownloadPathEachTime: false,
@@ -171,6 +181,7 @@ export interface DownloadRequestResponse {
 export interface SocketEventBase {
   type: 'progress' | 'complete' | 'failed';
   requestId: string;
+  jobKind: JobKind;
 }
 
 export interface SocketProgressEvent extends SocketEventBase {
@@ -200,6 +211,7 @@ export type SocketEvent = SocketProgressEvent | SocketCompleteEvent | SocketFail
 
 export interface ActiveDownloadState {
   requestId: string;
+  jobKind: JobKind;
   stage: DownloadStage;
   percentage?: string;
   speed?: string;
@@ -215,8 +227,92 @@ export interface ActiveDownloadsResponse {
   items: ActiveDownloadState[];
 }
 
+export interface HyperframesCatalogItem {
+  id: string;
+  title: string;
+  summary: string;
+  promptHint: string;
+  accent: string;
+  tags: string[];
+}
+
+export interface PremiereSequenceContext {
+  sequenceOpen: boolean;
+  sequenceName: string;
+  width: number;
+  height: number;
+  fps: number;
+  timebase: string;
+  playerPositionSeconds?: number;
+  inPointSeconds?: number;
+  outPointSeconds?: number;
+  durationSeconds?: number;
+  workAreaEnabled: boolean;
+  rangeSource?: string;
+  videoTrackCount: number;
+}
+
+export interface HyperframesContext {
+  projectName?: string;
+  projectPath?: string;
+  projectFolder?: string;
+  designPath?: string;
+  designExists: boolean;
+  artifactsRoot?: string;
+  premiereReady: boolean;
+  reason: string;
+  sequence: PremiereSequenceContext;
+  latestArtifactId?: string;
+  latestRenderPath?: string;
+}
+
+export interface HyperframesArtifact {
+  jobId: string;
+  title: string;
+  prompt: string;
+  templateId?: string;
+  createdAt: string;
+  updatedAt: string;
+  durationSeconds: number;
+  width: number;
+  height: number;
+  fps: number;
+  htmlPath: string;
+  renderPath?: string;
+  previewImagePath?: string;
+  manifestPath: string;
+  designPath: string;
+  projectName?: string;
+  sequenceName?: string;
+  inPointSeconds?: number;
+  outPointSeconds?: number;
+}
+
+export interface HyperframesArtifactDetail {
+  artifact: HyperframesArtifact;
+  htmlSource: string;
+}
+
+export interface HyperframesDesignDocument {
+  path: string;
+  content: string;
+}
+
+export interface HyperframesGenerateRequest {
+  prompt: string;
+  templateId?: string;
+  manualInSeconds?: number;
+  manualOutSeconds?: number;
+}
+
+export interface HyperframesActionResponse {
+  success: boolean;
+  jobId?: string;
+}
+
 export interface DownloadItem {
   requestId: string;
+  jobKind: 'download';
   historyId?: string;
   url: string;
   title: string;

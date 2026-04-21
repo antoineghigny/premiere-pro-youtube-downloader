@@ -116,9 +116,14 @@ export function useDownloads(settings: DesktopSettings) {
   }, [hydrateHistory]);
 
   const handleSocketMessage = useEffectEvent((message: SocketEvent) => {
+    if (message.jobKind !== 'download') {
+      return;
+    }
+
     if (message.type === 'progress') {
       applyActiveDownloadState({
         requestId: message.requestId,
+        jobKind: message.jobKind,
         stage: message.stage,
         percentage: message.percentage,
         speed: message.speed,
@@ -135,6 +140,7 @@ export function useDownloads(settings: DesktopSettings) {
     if (message.type === 'complete') {
       applyActiveDownloadState({
         requestId: message.requestId,
+        jobKind: message.jobKind,
         stage: 'complete',
         percentage: message.percentage,
         speed: undefined,
@@ -150,6 +156,7 @@ export function useDownloads(settings: DesktopSettings) {
 
     applyActiveDownloadState({
       requestId: message.requestId,
+      jobKind: message.jobKind,
       stage: 'failed',
       percentage: undefined,
       speed: undefined,
@@ -247,6 +254,7 @@ export function useDownloads(settings: DesktopSettings) {
       const requestId = crypto.randomUUID();
       addQueuedDownload({
         requestId,
+        jobKind: 'download',
         url: request.videoUrl,
         title: preview?.title || request.videoUrl,
         thumbnail: preview?.thumbnail,

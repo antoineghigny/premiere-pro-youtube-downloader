@@ -6,6 +6,7 @@ import { buildQueueStatusSummary } from './statusSummary';
 function createItem(overrides: Partial<DownloadItem>): DownloadItem {
   return {
     requestId: crypto.randomUUID(),
+    jobKind: 'download',
     url: 'https://example.com/video',
     title: 'Example video',
     status: 'queued',

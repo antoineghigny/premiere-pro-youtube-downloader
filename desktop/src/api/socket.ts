@@ -1,4 +1,9 @@
-import { discoverBackendPort, invalidateBackendPortCache, listActiveDownloads } from './client';
+import {
+  discoverBackendPort,
+  invalidateBackendPortCache,
+  listActiveDownloads,
+  listHyperframesJobs,
+} from './client';
 import type { ActiveDownloadState, SocketEvent } from './types';
 
 type Listener = (event: SocketEvent) => void;
@@ -8,6 +13,7 @@ function activeDownloadToSocketEvent(download: ActiveDownloadState): SocketEvent
     return {
       type: 'complete',
       requestId: download.requestId,
+      jobKind: download.jobKind,
       path: download.path ?? '',
       percentage: download.percentage,
     };
@@ -17,6 +23,7 @@ function activeDownloadToSocketEvent(download: ActiveDownloadState): SocketEvent
     return {
       type: 'failed',
       requestId: download.requestId,
+      jobKind: download.jobKind,
       message: download.message ?? 'Download failed',
       stage: download.stage,
       indeterminate: download.indeterminate,
@@ -26,6 +33,7 @@ function activeDownloadToSocketEvent(download: ActiveDownloadState): SocketEvent
   return {
     type: 'progress',
     requestId: download.requestId,
+    jobKind: download.jobKind,
     stage: download.stage,
     percentage: download.percentage,
     speed: download.speed,
@@ -129,8 +137,12 @@ class DownloadSocketClient {
 
   private async resyncActiveDownloads() {
     try {
-      const response = await listActiveDownloads();
-      for (const download of response.items.filter((item) => this.subscriptions.has(item.requestId))) {
+      const [downloads, hyperframes] = await Promise.all([
+        listActiveDownloads(),
+        listHyperframesJobs(),
+      ]);
+      const items = [...downloads.items, ...hyperframes.items];
+      for (const download of items.filter((item) => this.subscriptions.has(item.requestId))) {
         const event = activeDownloadToSocketEvent(download);
         for (const listener of this.listeners) {
           listener(event);

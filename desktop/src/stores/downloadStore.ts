@@ -14,6 +14,7 @@ function historyEntryToItem(entry: HistoryEntry): DownloadItem {
 
   return {
     requestId: entry.requestId || entry.id,
+    jobKind: 'download',
     historyId: entry.id,
     url: entry.url,
     title: entry.title,

@@ -18,7 +18,10 @@ use tokio::{net::TcpListener, process::Child, sync::Mutex};
 
 use crate::{
     cors,
-    models::{download::DownloadStage, runtime::ActiveDownloadState},
+    models::{
+        download::DownloadStage,
+        runtime::{ActiveDownloadState, JobKind},
+    },
     rate_limit::RateLimiter,
     request_logger,
     routes,
@@ -125,6 +128,7 @@ pub struct AppState {
     pub resource_dir: Option<PathBuf>,
     pub websocket_hub: WsHub,
     pub downloads: Arc<DashMap<String, ActiveDownloadState>>,
+    pub hyperframes: Arc<DashMap<String, ActiveDownloadState>>,
     pub child_processes: Arc<DashMap<String, Arc<Mutex<Child>>>>,
     pub cep: Arc<CepRegistration>,
     pub auth: Arc<AuthState>,
@@ -148,6 +152,7 @@ impl AppState {
             resource_dir,
             websocket_hub: WsHub::new(),
             downloads: Arc::new(DashMap::new()),
+            hyperframes: Arc::new(DashMap::new()),
             child_processes: Arc::new(DashMap::new()),
             cep: Arc::new(CepRegistration::new()),
             auth: Arc::new(AuthState::new()),
@@ -195,6 +200,7 @@ impl AppState {
     ) {
         self.update_download_state(ActiveDownloadState {
             request_id: request_id.to_string(),
+            job_kind: JobKind::Download,
             stage: stage.clone(),
             percentage: percentage.clone(),
             speed: speed.clone(),
@@ -208,6 +214,7 @@ impl AppState {
 
         self.websocket_hub.emit_progress(
             request_id,
+            JobKind::Download,
             stage,
             percentage,
             speed,
@@ -220,6 +227,7 @@ impl AppState {
     pub fn emit_complete(&self, request_id: &str, path: String) {
         self.update_download_state(ActiveDownloadState {
             request_id: request_id.to_string(),
+            job_kind: JobKind::Download,
             stage: DownloadStage::Complete,
             percentage: Some("100.0%".to_string()),
             speed: None,
@@ -231,12 +239,14 @@ impl AppState {
             updated_at: Utc::now(),
         });
 
-        self.websocket_hub.emit_complete(request_id, path);
+        self.websocket_hub
+            .emit_complete(request_id, JobKind::Download, path);
     }
 
     pub fn emit_failed(&self, request_id: &str, message: String) {
         self.update_download_state(ActiveDownloadState {
             request_id: request_id.to_string(),
+            job_kind: JobKind::Download,
             stage: DownloadStage::Failed,
             percentage: None,
             speed: None,
@@ -248,7 +258,91 @@ impl AppState {
             updated_at: Utc::now(),
         });
 
-        self.websocket_hub.emit_failed(request_id, message);
+        self.websocket_hub
+            .emit_failed(request_id, JobKind::Download, message);
+    }
+
+    pub fn update_hyperframes_state(&self, next: ActiveDownloadState) {
+        self.hyperframes.insert(next.request_id.clone(), next);
+    }
+
+    pub fn active_hyperframes(&self) -> Vec<ActiveDownloadState> {
+        self.hyperframes
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
+    pub fn emit_hyperframes_progress(
+        &self,
+        request_id: &str,
+        stage: DownloadStage,
+        percentage: Option<String>,
+        detail: Option<String>,
+        indeterminate: bool,
+    ) {
+        self.update_hyperframes_state(ActiveDownloadState {
+            request_id: request_id.to_string(),
+            job_kind: JobKind::Hyperframes,
+            stage: stage.clone(),
+            percentage: percentage.clone(),
+            speed: None,
+            eta: None,
+            detail: detail.clone(),
+            indeterminate,
+            path: None,
+            message: None,
+            updated_at: Utc::now(),
+        });
+
+        self.websocket_hub.emit_progress(
+            request_id,
+            JobKind::Hyperframes,
+            stage,
+            percentage,
+            None,
+            None,
+            detail,
+            indeterminate,
+        );
+    }
+
+    pub fn emit_hyperframes_complete(&self, request_id: &str, path: String) {
+        self.update_hyperframes_state(ActiveDownloadState {
+            request_id: request_id.to_string(),
+            job_kind: JobKind::Hyperframes,
+            stage: DownloadStage::Complete,
+            percentage: Some("100.0%".to_string()),
+            speed: None,
+            eta: None,
+            detail: Some("Completed".to_string()),
+            indeterminate: false,
+            path: Some(path.clone()),
+            message: None,
+            updated_at: Utc::now(),
+        });
+
+        self.websocket_hub
+            .emit_complete(request_id, JobKind::Hyperframes, path);
+    }
+
+    pub fn emit_hyperframes_failed(&self, request_id: &str, message: String) {
+        self.update_hyperframes_state(ActiveDownloadState {
+            request_id: request_id.to_string(),
+            job_kind: JobKind::Hyperframes,
+            stage: DownloadStage::Failed,
+            percentage: None,
+            speed: None,
+            eta: None,
+            detail: None,
+            indeterminate: true,
+            path: None,
+            message: Some(message.clone()),
+            updated_at: Utc::now(),
+        });
+
+        self.websocket_hub
+            .emit_failed(request_id, JobKind::Hyperframes, message);
     }
 
     pub fn register_child_process(&self, key: String, child: Child) {
@@ -296,6 +390,7 @@ impl AppState {
             resource_dir: None,
             websocket_hub: WsHub::new(),
             downloads: Arc::new(DashMap::new()),
+            hyperframes: Arc::new(DashMap::new()),
             child_processes: Arc::new(DashMap::new()),
             cep: Arc::new(CepRegistration::new()),
             auth: Arc::new(AuthState::new()),
@@ -379,6 +474,44 @@ pub async fn serve(state: AppState) -> Result<(), String> {
         .route(
             "/active-downloads",
             get(routes::download::active_downloads).options(routes::options_ok),
+        )
+        .route(
+            "/hyperframes/context",
+            get(routes::hyperframes::hyperframes_context).options(routes::options_ok),
+        )
+        .route(
+            "/hyperframes/catalog",
+            get(routes::hyperframes::hyperframes_catalog).options(routes::options_ok),
+        )
+        .route(
+            "/hyperframes/design",
+            get(routes::hyperframes::get_design)
+                .post(routes::hyperframes::save_design)
+                .options(routes::options_ok),
+        )
+        .route(
+            "/hyperframes/jobs",
+            get(routes::hyperframes::list_jobs).options(routes::options_ok),
+        )
+        .route(
+            "/hyperframes/artifacts",
+            get(routes::hyperframes::list_artifacts).options(routes::options_ok),
+        )
+        .route(
+            "/hyperframes/artifacts/{job_id}",
+            get(routes::hyperframes::get_artifact).options(routes::options_ok),
+        )
+        .route(
+            "/hyperframes/generate",
+            axum::routing::post(routes::hyperframes::generate_overlay).options(routes::options_ok),
+        )
+        .route(
+            "/hyperframes/render",
+            axum::routing::post(routes::hyperframes::render_overlay).options(routes::options_ok),
+        )
+        .route(
+            "/hyperframes/import",
+            axum::routing::post(routes::hyperframes::import_overlay).options(routes::options_ok),
         )
         .route(
             "/premiere-status",

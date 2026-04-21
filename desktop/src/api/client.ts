@@ -7,6 +7,13 @@ import {
   type DownloadRequestPayload,
   type DownloadRequestResponse,
   type HistoryResponse,
+  type HyperframesActionResponse,
+  type HyperframesArtifact,
+  type HyperframesArtifactDetail,
+  type HyperframesCatalogItem,
+  type HyperframesContext,
+  type HyperframesDesignDocument,
+  type HyperframesGenerateRequest,
   type IntegrationActionResponse,
   type IntegrationStatus,
   type PremiereStatusResponse,
@@ -262,6 +269,79 @@ export async function getHistory(page = 1, pageSize = 100): Promise<HistoryRespo
 export async function listActiveDownloads(): Promise<ActiveDownloadsResponse> {
   return apiRequest<ActiveDownloadsResponse>('/active-downloads', {
     method: 'GET',
+  });
+}
+
+export async function getHyperframesContext(): Promise<HyperframesContext> {
+  const response = await apiRequest<{ context: HyperframesContext }>('/hyperframes/context', {
+    method: 'GET',
+  });
+  return response.context;
+}
+
+export async function getHyperframesCatalog(): Promise<HyperframesCatalogItem[]> {
+  const response = await apiRequest<{ items: HyperframesCatalogItem[] }>('/hyperframes/catalog', {
+    method: 'GET',
+  });
+  return response.items;
+}
+
+export async function getHyperframesDesign(): Promise<HyperframesDesignDocument> {
+  return apiRequest<HyperframesDesignDocument>('/hyperframes/design', {
+    method: 'GET',
+  });
+}
+
+export async function saveHyperframesDesign(content: string): Promise<HyperframesDesignDocument> {
+  const response = await apiRequest<{ success: boolean; path: string }>('/hyperframes/design', {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+  return {
+    path: response.path,
+    content,
+  };
+}
+
+export async function listHyperframesJobs(): Promise<ActiveDownloadsResponse> {
+  return apiRequest<ActiveDownloadsResponse>('/hyperframes/jobs', {
+    method: 'GET',
+  });
+}
+
+export async function listHyperframesArtifacts(): Promise<HyperframesArtifact[]> {
+  const response = await apiRequest<{ items: HyperframesArtifact[] }>('/hyperframes/artifacts', {
+    method: 'GET',
+  });
+  return response.items;
+}
+
+export async function getHyperframesArtifact(jobId: string): Promise<HyperframesArtifactDetail> {
+  return apiRequest<HyperframesArtifactDetail>(`/hyperframes/artifacts/${jobId}`, {
+    method: 'GET',
+  });
+}
+
+export async function generateOverlay(
+  request: HyperframesGenerateRequest
+): Promise<HyperframesActionResponse> {
+  return apiRequest<HyperframesActionResponse>('/hyperframes/generate', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+export async function renderOverlay(jobId: string): Promise<HyperframesActionResponse> {
+  return apiRequest<HyperframesActionResponse>('/hyperframes/render', {
+    method: 'POST',
+    body: JSON.stringify({ jobId }),
+  });
+}
+
+export async function importOverlay(jobId: string): Promise<void> {
+  await apiRequest<void>('/hyperframes/import', {
+    method: 'POST',
+    body: JSON.stringify({ jobId }),
   });
 }
 

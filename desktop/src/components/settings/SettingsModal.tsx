@@ -131,6 +131,16 @@ export function SettingsModal({
               </div>
             </div>
             <label className="settings-field">
+              <span>Gemini API Key</span>
+              <input
+                type="password"
+                value={draft.geminiApiKey}
+                placeholder="AIza..."
+                onChange={(event) => setDraft((current) => ({ ...current, geminiApiKey: event.target.value }))}
+                className="h-10 rounded-2xl border border-white/10 bg-white/6 px-3 text-sm text-white outline-none focus:border-[var(--color-main)]"
+              />
+            </label>
+            <label className="settings-field">
               <span>{t('settings.defaultDestination')}</span>
               <Dropdown
                 value={draft.outputTarget}

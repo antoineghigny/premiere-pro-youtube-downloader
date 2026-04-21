@@ -2,6 +2,7 @@ pub mod download;
 pub mod folder_picker;
 pub mod health;
 pub mod history;
+pub mod hyperframes;
 pub mod integrations;
 pub mod premiere;
 pub mod settings;

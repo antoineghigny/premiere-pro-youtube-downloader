@@ -8,6 +8,7 @@ const initialState = useDownloadStore.getInitialState();
 function makeItem(overrides: Partial<DownloadItem> = {}): DownloadItem {
   return {
     requestId: 'req-1',
+    jobKind: 'download',
     url: 'https://example.com/video',
     title: 'Example video',
     status: 'queued',

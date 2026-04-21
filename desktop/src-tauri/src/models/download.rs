@@ -37,6 +37,13 @@ pub enum DownloadStage {
     Downloading,
     Clipping,
     Importing,
+    Context,
+    Design,
+    Generating,
+    Validating,
+    PreviewReady,
+    Rendering,
+    Encoding,
     Complete,
     Failed,
 }

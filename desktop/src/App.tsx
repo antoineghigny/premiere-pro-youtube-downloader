@@ -17,16 +17,11 @@ import {
   type IntegrationStatus,
 } from './api/types';
 import { createT, type TFunction, TranslationProvider } from './i18n';
-import { ClipPanel } from './components/download/ClipPanel';
-import { DownloadGrid } from './components/download/DownloadGrid';
-import { DownloadTable } from './components/download/DownloadTable';
-import { FFmpegPanel } from './components/download/FFmpegPanel';
-import { UrlBar } from './components/download/UrlBar';
-import { MenuBar } from './components/layout/MenuBar';
-import { StatusBar } from './components/layout/StatusBar';
-import { TitleBar } from './components/layout/TitleBar';
 import { SettingsModal } from './components/settings/SettingsModal';
+import { DownloadWorkspace } from './components/workspace/DownloadWorkspace';
+import { MotionStudioWorkspace } from './components/workspace/MotionStudioWorkspace';
 import { useDownloads } from './hooks/useDownloads';
+import { useMotionStudio } from './hooks/useMotionStudio';
 import { usePremiereStatus } from './hooks/usePremiereStatus';
 import { useSettings } from './hooks/useSettings';
 import { useVideoInfo } from './hooks/useVideoInfo';
@@ -61,8 +56,10 @@ export default function App() {
   const { settings, setSettings, persistSettings } = useSettings();
   const premiereStatus = usePremiereStatus();
   const downloads = useDownloads(settings);
+  const motionStudio = useMotionStudio();
   const premiereReady = premiereStatus.canImport;
 
+  const [workspace, setWorkspace] = useState<'downloads' | 'motionStudio'>('motionStudio');
   const [backendConnected, setBackendConnected] = useState(false);
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
@@ -304,138 +301,87 @@ export default function App() {
 
   return (
     <TranslationProvider value={t}>
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#2a1b5f_0%,rgba(12,13,27,0.98)_36%,#06070e_100%)] px-4 py-4 text-white md:px-6">
-      <div className="mx-auto flex h-[calc(100vh-2rem)] max-w-[1680px] flex-col gap-4">
-        <TitleBar
+      <>
+        {workspace === 'downloads' ? (
+          <DownloadWorkspace
           backendConnected={backendConnected}
-          premiereStatus={premiereStatus}
-          onOpenSettings={() => downloads.setSettingsOpen(true)}
-        />
-        <MenuBar
-          viewMode={downloads.viewMode}
-          filterText={downloads.filterText}
-          onViewChange={downloads.setViewMode}
-          onFilterChange={downloads.setFilterText}
-          onClearCompleted={downloads.clearCompleted}
-          onClearHistory={() => {
-            void downloads.clearPersistedHistory();
+            clipEnabled={clipOpen}
+            clipEnd={clipEnd}
+            clipStart={clipStart}
+            downloads={downloads}
+            ffmpegOptions={ffmpegOptions}
+            folderOverride={folder}
+            info={info}
+            infoError={urlError || infoError}
+            infoLoading={infoLoading}
+            openAdvanced={ffmpegOpen}
+            outputTarget={outputTarget}
+            premiereStatus={premiereStatus}
+            quality={quality}
+            queueSummary={queueSummary}
+            settings={settings}
+            url={url}
+            workspace={workspace}
+            onClipEnabledChange={setClipOpen}
+            onClipEndChange={setClipEnd}
+            onClipStartChange={setClipStart}
+            onDeletePreset={async (presetId) => {
+              await handleDeletePreset(presetId);
+            }}
+            onFFmpegOptionsChange={setFFmpegOptions}
+            onFolderOverrideChange={setFolder}
+            onOpenAdvancedChange={setFFmpegOpen}
+            onOutputTargetChange={setOutputTarget}
+            onPickFolder={handlePickFolder}
+            onQualityChange={setQuality}
+            onQueueDownload={handleQueueDownload}
+            onSavePreset={handleSavePreset}
+            onUrlChange={(nextValue) => {
+              setUrl(nextValue);
+              if (urlError) {
+                setUrlError('');
+              }
+            }}
+            onWorkspaceChange={setWorkspace}
+          />
+        ) : (
+          <MotionStudioWorkspace
+            backendConnected={backendConnected}
+            settings={settings}
+            studio={motionStudio}
+            workspace={workspace}
+            onOpenSettings={() => downloads.setSettingsOpen(true)}
+            onWorkspaceChange={setWorkspace}
+          />
+        )}
+        <SettingsModal
+          open={downloads.settingsOpen}
+          settings={settings}
+          onClose={() => {
+            downloads.setSettingsOpen(false);
+            setIntegrationMessage('');
           }}
-        />
-        <UrlBar
-          url={url}
-          info={info}
-          infoLoading={infoLoading}
-          infoError={urlError || infoError}
-          quality={quality}
-          outputTarget={outputTarget}
-          ffmpegOpen={ffmpegOpen}
-          clipOpen={clipOpen}
-          onUrlChange={(nextValue) => {
-            setUrl(nextValue);
-            if (urlError) {
-              setUrlError('');
-            }
+          onSave={async (nextSettings) => {
+            const saved = await persistSettings(nextSettings);
+            setSettings(saved);
           }}
-          onQualityChange={setQuality}
-          onOutputTargetChange={setOutputTarget}
-          onToggleFFmpeg={() => setFFmpegOpen((current) => !current)}
-          onToggleClip={() => setClipOpen((current) => !current)}
-          onPickFolder={() => {
-            void handlePickFolder();
-          }}
-          onSubmit={handleQueueDownload}
-        />
-        <FFmpegPanel
-          open={ffmpegOpen}
-          value={ffmpegOptions}
-          presets={settings.ffmpegPresets}
-          premiereStatus={premiereStatus}
-          onChange={(patch) => setFFmpegOptions((current) => ({ ...current, ...patch }))}
-          onSavePreset={() => {
-            void handleSavePreset();
-          }}
+          onPickFolder={(currentPath) => pickFolder(currentPath)}
           onLoadPreset={(presetId) => {
             const preset = settings.ffmpegPresets.find((candidate) => candidate.id === presetId);
             if (preset) {
               setFFmpegOptions(preset.options);
             }
           }}
+          onDeletePreset={handleDeletePreset}
+          onRevealPath={revealFile}
+          integrationStatus={integrationStatus}
+          integrationLoading={integrationLoading}
+          integrationMessage={integrationMessage}
+          integrationBusy={integrationBusy}
+          onInstallPremiere={handleInstallPremiere}
+          onOpenBrowserSetup={handleOpenBrowserSetup}
         />
-        <ClipPanel
-          open={clipOpen}
-          start={clipStart}
-          end={clipEnd}
-          onStartChange={setClipStart}
-          onEndChange={setClipEnd}
-        />
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1">
-            {downloads.viewMode === 'list' ? (
-              <DownloadTable
-                items={downloads.items}
-                onRetry={downloads.retryDownload}
-                onRemove={(item) => {
-                  void downloads.deleteDownload(item);
-                }}
-                onReveal={(item) => {
-                  void downloads.revealDownload(item);
-                }}
-                onMove={downloads.moveDownload}
-              />
-            ) : (
-              <DownloadGrid
-                items={downloads.items}
-                onRetry={downloads.retryDownload}
-                onRemove={(item) => {
-                  void downloads.deleteDownload(item);
-                }}
-                onReveal={(item) => {
-                  void downloads.revealDownload(item);
-                }}
-              />
-            )}
-          </div>
-        </div>
-        <StatusBar
-          totalCount={queueSummary.totalCount}
-          activeCount={queueSummary.activeCount}
-          queuedCount={queueSummary.queuedCount}
-          completedCount={queueSummary.completedCount}
-          failedCount={queueSummary.failedCount}
-          completedPercent={queueSummary.completedPercent}
-          activePercent={queueSummary.activePercent}
-          failedPercent={queueSummary.failedPercent}
-          queuedPercent={queueSummary.queuedPercent}
-        />
-      </div>
-      <SettingsModal
-        open={downloads.settingsOpen}
-        settings={settings}
-        onClose={() => {
-          downloads.setSettingsOpen(false);
-          setIntegrationMessage('');
-        }}
-        onSave={async (nextSettings) => {
-          const saved = await persistSettings(nextSettings);
-          setSettings(saved);
-        }}
-        onPickFolder={(currentPath) => pickFolder(currentPath)}
-        onLoadPreset={(presetId) => {
-          const preset = settings.ffmpegPresets.find((candidate) => candidate.id === presetId);
-          if (preset) {
-            setFFmpegOptions(preset.options);
-          }
-        }}
-        onDeletePreset={handleDeletePreset}
-        onRevealPath={revealFile}
-        integrationStatus={integrationStatus}
-        integrationLoading={integrationLoading}
-        integrationMessage={integrationMessage}
-        integrationBusy={integrationBusy}
-        onInstallPremiere={handleInstallPremiere}
-        onOpenBrowserSetup={handleOpenBrowserSetup}
-      />
-    </div>
+      </>
     </TranslationProvider>
   );
 }
