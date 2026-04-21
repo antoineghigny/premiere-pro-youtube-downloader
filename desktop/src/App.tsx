@@ -28,6 +28,7 @@ import { isLikelyRemoteUrl, parseTimecode } from './utils/validation';
 
 import { AppShell } from './components/shell/AppShell';
 import { MediaPage } from './pages/MediaPage';
+import { CutPage } from './pages/CutPage';
 import { FusionPage } from './pages/FusionPage';
 
 function buildPresetName(options: FFmpegOptions) {
@@ -41,7 +42,7 @@ export default function App() {
   const motionStudio = useMotionStudio();
   const premiereReady = premiereStatus.canImport;
 
-  const [pageId, setPageId] = useState<'media' | 'fusion'>('media');
+  const [pageId, setPageId] = useState<'media' | 'cut' | 'fusion'>('cut');
   const [backendConnected, setBackendConnected] = useState(false);
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
@@ -167,6 +168,7 @@ export default function App() {
 
   const pages = [
     { id: 'media', label: 'Media', icon: FolderOpen },
+    { id: 'cut', label: 'Cut', icon: Scissors },
     { id: 'fusion', label: 'Fusion', icon: Sparkles },
   ];
 
@@ -175,12 +177,14 @@ export default function App() {
       <AppShell
         pages={pages}
         currentPageId={pageId}
-        onPageChange={(id) => setPageId(id as 'media' | 'fusion')}
+        onPageChange={(id) => setPageId(id as 'media' | 'cut' | 'fusion')}
         onOpenSettings={() => downloads.setSettingsOpen(true)}
         onQuit={() => window.close()}
       >
-        {pageId === 'media' ? (
-          <MediaPage 
+        {pageId === 'media' && <MediaPage downloads={downloads} />}
+        
+        {pageId === 'cut' && (
+          <CutPage 
             url={url}
             onUrlChange={(val) => { setUrl(val); setUrlError(''); }}
             onQueueDownload={handleQueueDownload}
@@ -206,7 +210,9 @@ export default function App() {
             settings={settings}
             premiereStatus={premiereStatus}
           />
-        ) : (
+        )}
+
+        {pageId === 'fusion' && (
           <FusionPage studio={motionStudio} settings={settings} />
         )}
 

@@ -1,10 +1,17 @@
 @theme {
-  --color-grey: #A7A3C2;
-  --color-grey-light: #D5CEEA;
-  --color-grey-lighter: #F8F5FF;
-  --color-black: #2A2C40;
-  --color-main: #6116FF;
-  --color-btnColor: #6116FF;
-  --color-btnBorder: #24008C;
-  --font-epilogue: "Epilogue", sans-serif;
+  --color-rv-window:   #1a1a1a;
+  --color-rv-panel:    #222222;
+  --color-rv-raised:   #2d2d2d;
+  --color-rv-input:    #141414;
+  --color-rv-button:   #383838;
+  --color-rv-border-inset: #111111;
+  --color-rv-text:     #d4d4d4;
+  --color-rv-text-muted: #a0a0a0;
+  --color-rv-text-strong: #eaeaea;
+  --color-rv-accent:   #0078d7;
+  --color-rv-orange:   #e68a00;
+  --color-rv-error:    #c14b4b;
+  --color-rv-ok:       #4ea64e;
+  
+  --font-sans: system-ui, sans-serif;
 }
