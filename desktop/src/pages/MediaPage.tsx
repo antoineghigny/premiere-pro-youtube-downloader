@@ -82,24 +82,14 @@ export const MediaPage: React.FC<MediaPageProps> = (props) => {
     if (component === "source_ingestion") {
       return (
         <div className="flex flex-col h-full bg-rv-panel overflow-y-auto">
-          {/* Compact Thumb Monitor - Only visible when URL is present or loading */}
+          {/* Thumb Monitor */}
           {(props.url || props.infoLoading) && (
-            <div className="shrink-0 border-b border-rv-border-inset bg-black rv-checkerboard relative" style={{ height: 'min(30vh, 180px)' }}>
+            <div className="shrink-0 border-b border-rv-border-inset bg-black rv-checkerboard relative" style={{ height: '180px' }}>
               <VideoMonitor info={props.info} loading={props.infoLoading} />
-              {props.infoError && (
-                 <div className="absolute inset-0 flex items-center justify-center bg-rv-error/10 text-rv-error text-[10px] font-bold uppercase p-4 text-center">
-                    {props.infoError}
-                 </div>
-              )}
             </div>
           )}
           
           <div className="p-4 flex flex-col gap-4">
-             <div className="flex items-center gap-2 mb-2">
-                <Icon icon={PlaySquare} size={14} className="text-rv-accent" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-rv-text-strong">Ingestion Control</span>
-             </div>
-             
              <UrlBar
                 url={props.url}
                 onUrlChange={props.onUrlChange}
@@ -117,17 +107,6 @@ export const MediaPage: React.FC<MediaPageProps> = (props) => {
                 settings={props.settings}
                 premiereStatus={props.premiereStatus}
               />
-              
-              {props.info && (
-                 <div className="mt-4 p-3 bg-rv-raised/30 border border-rv-border-inset rounded-[2px] flex flex-col gap-1">
-                    <div className="flex items-center gap-2 mb-1">
-                       <Icon icon={Info} size={11} className="text-rv-text-muted" />
-                       <span className="text-[9px] font-bold text-rv-text-muted uppercase">Clip Metadata</span>
-                    </div>
-                    <div className="text-[10px] text-rv-text-strong truncate uppercase font-bold">{props.info.title}</div>
-                    <div className="text-[9px] text-rv-accent font-mono uppercase">Duration: {props.info.duration}</div>
-                 </div>
-              )}
           </div>
         </div>
       );
