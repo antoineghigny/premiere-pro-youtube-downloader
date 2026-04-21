@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FolderOpen, Sparkles } from 'lucide-react';
+import { FolderOpen, Sparkles, Scissors } from 'lucide-react';
 
 import {
   getBackendHealth,
@@ -36,6 +36,7 @@ export default function App() {
   const premiereReady = premiereStatus.canImport;
 
   const [pageId, setPageId] = useState<'media' | 'fusion'>('media');
+  const [backendConnected, setBackendConnected] = useState(false);
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
   const [folder, setFolder] = useState('');
@@ -70,7 +71,7 @@ export default function App() {
     let isMounted = true;
     const poll = async () => {
       const healthy = await getBackendHealth();
-      if (isMounted) { /* setBackendConnected(healthy); */ }
+      if (isMounted) setBackendConnected(healthy);
     };
     poll();
     const intervalId = window.setInterval(poll, 4000);
@@ -197,6 +198,7 @@ export default function App() {
             downloads={downloads}
             settings={settings}
             premiereStatus={premiereStatus}
+            backendConnected={backendConnected}
           />
         )}
 

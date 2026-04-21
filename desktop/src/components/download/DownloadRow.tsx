@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderOpen, RefreshCcw, Trash2, CheckCircle2, AlertCircle, Clock, Activity } from 'lucide-react';
+import { FolderOpen, RefreshCcw, Trash2, CheckCircle2, AlertCircle, Clock, Activity, Image as ImageIcon } from 'lucide-react';
 import { formatBytes, formatElapsed, formatRepresentativeSpeed } from '../../utils/format';
 import { ProgressBar } from './ProgressBar';
 import { Icon } from '../common/Icon';
@@ -19,7 +19,21 @@ export const DownloadRow: React.FC<DownloadRowProps> = ({ item, onRetry, onDelet
   const isRunning = item.status === 'running' || item.status === 'starting';
 
   return (
-    <div className="group flex items-center h-[28px] border-b border-rv-border-inset hover:bg-rv-raised/40 px-3 gap-3 select-none cursor-pointer transition-colors">
+    <div className="group flex items-center h-[36px] border-b border-rv-border-inset hover:bg-rv-raised/40 px-2 gap-3 select-none cursor-pointer transition-colors">
+      {/* Mini Thumbnail */}
+      <div className="w-12 h-6 bg-black/50 border border-rv-border-inset rounded-[1px] shrink-0 overflow-hidden relative">
+        {item.thumbnail ? (
+          <img src={item.thumbnail} alt="" className={cn("w-full h-full object-cover", !isComplete && "opacity-50 grayscale")} />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center opacity-20">
+             <Icon icon={ImageIcon} size={10} />
+          </div>
+        )}
+        {isComplete && (
+          <div className="absolute inset-0 border-[1px] border-rv-ok/30 pointer-events-none" />
+        )}
+      </div>
+
       <div className="w-4 flex items-center justify-center shrink-0">
          <Icon 
            icon={isComplete ? CheckCircle2 : isFailed ? AlertCircle : isRunning ? Activity : Clock} 
@@ -56,13 +70,13 @@ export const DownloadRow: React.FC<DownloadRowProps> = ({ item, onRetry, onDelet
       </div>
 
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity w-16 justify-end">
-        <button onClick={() => onReveal(item)} className="p-1 hover:text-rv-accent text-rv-text-disabled disabled:opacity-0" disabled={!isComplete}>
+        <button onClick={(e) => { e.stopPropagation(); onReveal(item); }} className="p-1 hover:text-rv-accent text-rv-text-disabled disabled:opacity-0" disabled={!isComplete}>
           <Icon icon={FolderOpen} size={12} />
         </button>
-        <button onClick={() => onRetry(item)} className="p-1 hover:text-rv-text-strong text-rv-text-disabled">
+        <button onClick={(e) => { e.stopPropagation(); onRetry(item); }} className="p-1 hover:text-rv-text-strong text-rv-text-disabled">
           <Icon icon={RefreshCcw} size={12} />
         </button>
-        <button onClick={() => onDelete(item)} className="p-1 hover:text-rv-error text-rv-text-disabled">
+        <button onClick={(e) => { e.stopPropagation(); onDelete(item); }} className="p-1 hover:text-rv-error text-rv-text-disabled">
           <Icon icon={Trash2} size={12} />
         </button>
       </div>

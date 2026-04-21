@@ -109,11 +109,11 @@ export const UrlBar: React.FC<UrlBarProps> = ({
       <DaVinciButton 
         variant="primary"
         onClick={onQueueDownload}
-        disabled={!url.trim() || infoLoading}
+        disabled={!url.trim()}
         className="w-full h-8 mt-4"
         icon={<Icon icon={Download} size={14} />}
       >
-        Add to Queue
+        {infoLoading ? 'Resolving Metadata...' : 'Add to Queue'}
       </DaVinciButton>
     </div>
   );
