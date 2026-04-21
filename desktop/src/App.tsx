@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FolderOpen, Sparkles, Scissors } from 'lucide-react';
+import { FolderOpen, Sparkles } from 'lucide-react';
 
 import {
   getBackendHealth,
@@ -26,7 +26,6 @@ import { isLikelyRemoteUrl, parseTimecode } from './utils/validation';
 
 import { AppShell } from './components/shell/AppShell';
 import { MediaPage } from './pages/MediaPage';
-import { CutPage } from './pages/CutPage';
 import { FusionPage } from './pages/FusionPage';
 
 export default function App() {
@@ -36,7 +35,7 @@ export default function App() {
   const motionStudio = useMotionStudio();
   const premiereReady = premiereStatus.canImport;
 
-  const [pageId, setPageId] = useState<'media' | 'cut' | 'fusion'>('cut');
+  const [pageId, setPageId] = useState<'media' | 'fusion'>('media');
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
   const [folder, setFolder] = useState('');
@@ -160,7 +159,6 @@ export default function App() {
 
   const pages = [
     { id: 'media', label: 'Media', icon: FolderOpen },
-    { id: 'cut', label: 'Cut', icon: Scissors },
     { id: 'fusion', label: 'Fusion', icon: Sparkles },
   ];
 
@@ -169,14 +167,12 @@ export default function App() {
       <AppShell
         pages={pages}
         currentPageId={pageId}
-        onPageChange={(id) => setPageId(id as 'media' | 'cut' | 'fusion')}
+        onPageChange={(id) => setPageId(id as 'media' | 'fusion')}
         onOpenSettings={() => downloads.setSettingsOpen(true)}
         onQuit={() => window.close()}
       >
-        {pageId === 'media' && <MediaPage downloads={downloads} />}
-        
-        {pageId === 'cut' && (
-          <CutPage 
+        {pageId === 'media' && (
+          <MediaPage 
             url={url}
             onUrlChange={(val) => { setUrl(val); setUrlError(''); }}
             onQueueDownload={handleQueueDownload}
