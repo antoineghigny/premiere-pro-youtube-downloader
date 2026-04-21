@@ -1,13 +1,12 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import * as FlexLayout from 'flexlayout-react';
-import { DaVinciPanel } from '../components/davinci-ui';
 import { UrlBar } from '../components/download/UrlBar';
 import { DownloadTable } from '../components/download/DownloadTable';
 import { FFmpegPanel } from '../components/download/FFmpegPanel';
 import { ClipPanel } from '../components/download/ClipPanel';
 import { VideoMonitor } from '../components/download/VideoMonitor';
 import { cn } from '@/lib/utils';
-import { Settings2, Scissors, Search, List, PlaySquare, Video, Info } from 'lucide-react';
+import { Settings2, Scissors, Search, PlaySquare, Info } from 'lucide-react';
 import { Icon } from '../components/common/Icon';
 
 interface MediaPageProps {
@@ -41,7 +40,14 @@ const INITIAL_LAYOUT: FlexLayout.IJsonModel = {
   global: {
     tabSetHeaderHeight: 26,
     tabSetTabLocation: "top",
-    splitterSize: 3
+    splitterSize: 3,
+    tabSetEnableDeleteWhenEmpty: false,
+    tabSetEnableDrop: true,
+    tabSetEnableDrag: true,
+    tabSetEnableDivide: true,
+    tabSetEnableMaximize: true,
+    tabSetEnableTabStrip: true,
+    enableEdgeDock: true
   },
   layout: {
     type: "row",
@@ -50,22 +56,25 @@ const INITIAL_LAYOUT: FlexLayout.IJsonModel = {
       {
         type: "tabset",
         weight: 30,
+        id: "source_set",
         children: [
-          { type: "tab", name: "Source", component: "source_ingestion", icon: "video" }
+          { type: "tab", name: "Source", component: "source_ingestion", id: "tab_source" }
         ]
       },
       {
         type: "tabset",
         weight: 45,
+        id: "media_set",
         children: [
-          { type: "tab", name: "Media Pool", component: "media_pool", icon: "list" }
+          { type: "tab", name: "Media Pool", component: "media_pool", id: "tab_media" }
         ]
       },
       {
         type: "tabset",
         weight: 25,
+        id: "inspector_set",
         children: [
-          { type: "tab", name: "Inspector", component: "inspector", icon: "settings" }
+          { type: "tab", name: "Inspector", component: "inspector", id: "tab_inspector" }
         ]
       }
     ]
@@ -82,7 +91,6 @@ export const MediaPage: React.FC<MediaPageProps> = (props) => {
     if (component === "source_ingestion") {
       return (
         <div className="flex flex-col h-full bg-rv-panel overflow-y-auto">
-          {/* Thumb Monitor */}
           {(props.url || props.infoLoading) && (
             <div className="shrink-0 border-b border-rv-border-inset bg-black rv-checkerboard relative" style={{ height: '180px' }}>
               <VideoMonitor info={props.info} loading={props.infoLoading} />
@@ -120,7 +128,7 @@ export const MediaPage: React.FC<MediaPageProps> = (props) => {
               <Icon icon={Search} size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-rv-text-disabled" />
               <input 
                 type="text"
-                placeholder="Search Media Pool..."
+                placeholder="Search..."
                 className="rv-input pl-7 w-full h-[22px] text-[10px] uppercase font-bold tracking-tight"
                 value={props.downloads.filterText || ''}
                 onChange={(e) => props.downloads.setFilterText?.(e.target.value)}
@@ -133,7 +141,6 @@ export const MediaPage: React.FC<MediaPageProps> = (props) => {
               onReveal={props.downloads.revealDownload}
               onRetry={props.downloads.retryDownload}
               onDelete={props.downloads.deleteDownload}
-              viewMode="list"
             />
           </div>
         </div>
@@ -196,7 +203,6 @@ export const MediaPage: React.FC<MediaPageProps> = (props) => {
       <FlexLayout.Layout 
         model={model} 
         factory={factory} 
-        font={{ size: "10px", family: "var(--font-sans)" }}
       />
     </div>
   );

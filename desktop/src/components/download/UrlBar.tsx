@@ -1,8 +1,9 @@
 import React from 'react';
-import { Download, FolderOpen, Link2 } from 'lucide-react';
+import { Download, FolderOpen, Link2, AlertCircle } from 'lucide-react';
 import { DaVinciButton, DaVinciInput } from '../davinci-ui';
 import { Icon } from '../common/Icon';
 import { Dropdown } from '../common/Dropdown';
+import { cn } from '@/lib/utils';
 
 interface UrlBarProps {
   url: string;
@@ -35,6 +36,7 @@ export const UrlBar: React.FC<UrlBarProps> = ({
   onFolderOverrideChange,
   onPickFolder,
   settings,
+  infoError,
 }) => {
   return (
     <div className="flex flex-col gap-4">
@@ -45,10 +47,16 @@ export const UrlBar: React.FC<UrlBarProps> = ({
           <DaVinciInput
             value={url}
             onChange={(e) => onUrlChange(e.target.value)}
-            className="w-full pl-9"
+            className={cn("w-full pl-9", infoError && "border-rv-error")}
             placeholder="Paste YouTube or Video URL..."
           />
         </div>
+        {infoError && (
+          <div className="mt-2 p-2 bg-rv-error/10 border border-rv-error/30 rounded-[2px] text-[10px] text-rv-error font-bold uppercase flex items-start gap-2">
+            <Icon icon={AlertCircle} size={12} className="shrink-0 mt-0.5" />
+            <span>{infoError}</span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">

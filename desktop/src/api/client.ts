@@ -92,7 +92,7 @@ async function pingBackendPort(port: number): Promise<BackendCandidate> {
       'X-YT2PP-Desktop': '1',
       'X-YT2PP-Desktop-Token': desktopAuthToken,
     },
-    signal: AbortSignal.timeout(800),
+    signal: AbortSignal.timeout(2000),
   });
 
   if (!response.ok) {
