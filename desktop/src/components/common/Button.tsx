@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'icon';
+  size?: 'sm' | 'md' | 'icon' | 'lg';
   icon?: ReactNode;
   active?: boolean;
 };
@@ -21,11 +21,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
     <button
       ref={ref}
       className={cn(
-        "rv-button gap-1.5 shrink-0",
-        variant === 'primary' && "text-rv-accent border-rv-accent/30 font-semibold",
-        variant === 'danger' && "text-rv-error border-rv-error/30",
-        variant === 'ghost' && "bg-transparent border-transparent hover:bg-rv-button-hover hover:border-rv-border-inset",
-        size === 'sm' && "h-[18px] px-1.5 text-[10px]",
+        "rv-button gap-1.5 shrink-0 uppercase tracking-[0.1em] font-bold text-[10px]",
+        variant === 'primary' && "rv-button-primary",
+        variant === 'danger' && "text-rv-error border-rv-error/40 hover:bg-rv-error/10",
+        variant === 'ghost' && "bg-transparent border-transparent hover:bg-rv-raised/50 hover:border-rv-border-inset",
+        size === 'sm' && "h-[20px] px-1.5",
+        size === 'lg' && "h-[32px] px-4 text-[11px]",
         size === 'icon' && "w-[24px] p-0 flex items-center justify-center",
         active && "rv-button-active",
         className

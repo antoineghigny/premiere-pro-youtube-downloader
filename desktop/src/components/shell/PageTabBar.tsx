@@ -17,7 +17,7 @@ interface PageTabBarProps {
 
 export const PageTabBar: React.FC<PageTabBarProps> = ({ pages, currentPageId, onPageChange }) => {
   return (
-    <div className="h-[48px] bg-rv-window border-t border-rv-border-relief flex items-center justify-center select-none overflow-hidden">
+    <div className="h-[44px] bg-rv-window border-t border-rv-border-inset flex items-center justify-center select-none overflow-hidden">
       {pages.map((page) => {
         const isActive = page.id === currentPageId;
         return (
@@ -25,19 +25,18 @@ export const PageTabBar: React.FC<PageTabBarProps> = ({ pages, currentPageId, on
             key={page.id}
             onClick={() => onPageChange(page.id)}
             className={cn(
-              "rv-tab min-w-[100px]",
+              "rv-tab min-w-[80px]",
               isActive && "rv-tab-active"
             )}
           >
             <Icon 
               icon={page.icon} 
               size={18} 
-              strokeWidth={isActive ? 1.75 : 1.5}
-              className={isActive ? "text-rv-text-strong" : "text-rv-text-muted"}
+              strokeWidth={isActive ? 2 : 1.5}
             />
             <span className={cn(
-              "text-[10px] uppercase tracking-wider",
-              isActive ? "text-rv-text-strong font-semibold" : "text-rv-text-muted"
+              "text-[9px] uppercase tracking-[0.1em] font-bold transition-all",
+              isActive ? "text-rv-orange opacity-100" : "text-rv-text-muted opacity-80"
             )}>
               {page.label}
             </span>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Group, Panel as ResizablePanel, Separator } from 'react-resizable-panels';
-import { Panel } from '../components/shell/Panel';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { Panel as RvPanel } from '../components/shell/Panel';
 import { PanelHeader } from '../components/shell/PanelHeader';
 import { UrlBar } from '../components/download/UrlBar';
 import { DownloadTable } from '../components/download/DownloadTable';
@@ -39,21 +39,6 @@ interface MediaPageProps {
   premiereStatus: any;
 }
 
-const ResizeHandle = ({ orientation = 'horizontal', className }: { orientation?: 'horizontal' | 'vertical', className?: string }) => (
-  <Separator
-    className={cn(
-      "relative bg-rv-window transition-colors hover:bg-rv-border-strong",
-      orientation === 'horizontal' ? "w-1" : "h-1",
-      className
-    )}
-  >
-    <div className={cn(
-      "absolute z-10",
-      orientation === 'horizontal' ? "-left-1 -right-1 top-0 bottom-0 cursor-col-resize" : "-top-1 -bottom-1 left-0 right-0 cursor-row-resize"
-    )} />
-  </Separator>
-);
-
 export const MediaPage: React.FC<MediaPageProps> = ({
   url,
   onUrlChange,
@@ -86,12 +71,12 @@ export const MediaPage: React.FC<MediaPageProps> = ({
 
   return (
     <div className="flex-1 overflow-hidden bg-rv-window p-1">
-      <Group orientation="horizontal">
+      <PanelGroup direction="horizontal">
         {/* LEFT COLUMN: Ingestion & Media Pool */}
-        <ResizablePanel defaultSize={25} minSize={20}>
-          <Group orientation="vertical">
-            <ResizablePanel defaultSize={40} minSize={30}>
-              <Panel className="h-full">
+        <Panel defaultSize={30} minSize={20}>
+          <PanelGroup direction="vertical">
+            <Panel defaultSize={40} minSize={20}>
+              <RvPanel className="h-full">
                 <PanelHeader title="Ingestion" />
                 <div className="p-4 overflow-y-auto">
                   <UrlBar
@@ -112,23 +97,23 @@ export const MediaPage: React.FC<MediaPageProps> = ({
                     premiereStatus={premiereStatus}
                   />
                 </div>
-              </Panel>
-            </ResizablePanel>
+              </RvPanel>
+            </Panel>
             
-            <ResizeHandle orientation="vertical" />
+            <PanelResizeHandle className="h-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
             
-            <ResizablePanel defaultSize={60} minSize={30}>
-              <Panel className="h-full">
+            <Panel defaultSize={60} minSize={30}>
+              <RvPanel className="h-full">
                 <PanelHeader>
                   <div className="flex flex-1 items-center gap-2">
                     <span className="flex-1">Media Pool</span>
                     <div className="flex items-center gap-1 mr-2">
                       <div className="relative">
-                        <Icon icon={ListFilter} size={12} className="absolute left-1.5 top-1/2 -translate-y-1/2 text-rv-text-disabled" />
+                        <Icon icon={ListFilter} size={11} className="absolute left-1.5 top-1/2 -translate-y-1/2 text-rv-text-disabled" />
                         <input 
                           type="text"
-                          placeholder="Filter..."
-                          className="rv-input pl-6 w-[120px] h-[18px] text-[10px]"
+                          placeholder="Search..."
+                          className="rv-input pl-5 w-[100px] h-[18px] text-[10px] uppercase font-bold tracking-tight"
                           value={downloads.filterText}
                           onChange={(e) => downloads.setFilterText(e.target.value)}
                         />
@@ -159,51 +144,51 @@ export const MediaPage: React.FC<MediaPageProps> = ({
                     viewMode={viewMode}
                   />
                 </div>
-              </Panel>
-            </ResizablePanel>
+              </RvPanel>
+            </Panel>
           </Group>
-        </ResizablePanel>
+        </Panel>
 
-        <ResizeHandle orientation="horizontal" />
+        <PanelResizeHandle className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
 
         {/* MIDDLE COLUMN: Monitor */}
-        <ResizablePanel defaultSize={45} minSize={30}>
-           <Panel className="h-full mx-1">
-              <PanelHeader title="Source Monitor" />
-              <div className="flex-1 overflow-hidden">
+        <Panel defaultSize={40} minSize={30}>
+           <RvPanel className="h-full">
+              <PanelHeader title="Source Viewer" />
+              <div className="flex-1 overflow-hidden rv-checkerboard">
                 <VideoMonitor info={info} loading={infoLoading} />
               </div>
-           </Panel>
-        </ResizablePanel>
+           </RvPanel>
+        </Panel>
 
-        <ResizeHandle orientation="horizontal" />
+        <PanelResizeHandle className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
 
         {/* RIGHT COLUMN: Inspector */}
-        <ResizablePanel defaultSize={30} minSize={20}>
-          <Panel className="h-full">
-            <div className="flex bg-rv-raised h-[24px] border-b border-rv-border-inset p-0.5 gap-0.5">
+        <Panel defaultSize={30} minSize={20}>
+          <RvPanel className="h-full">
+            <div className="flex bg-rv-raised h-[24px] border-b border-rv-border-inset border-t border-t-rv-border-relief">
               <button 
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 text-[10px] uppercase tracking-wider font-semibold rounded-[1px] transition-colors",
-                  rightPanelTab === 'options' ? "bg-rv-panel text-rv-text-strong shadow-inner border border-rv-border-inset" : "text-rv-text-muted hover:text-rv-text"
+                  "flex-1 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.1em] font-bold transition-all relative",
+                  rightPanelTab === 'options' ? "text-rv-orange after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[1px] after:bg-rv-orange" : "text-rv-text-muted hover:text-rv-text"
                 )}
                 onClick={() => setRightPanelTab('options')}
               >
-                <Icon icon={Settings2} size={12} />
+                <Icon icon={Settings2} size={11} />
                 Inspector
               </button>
               <button 
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 text-[10px] uppercase tracking-wider font-semibold rounded-[1px] transition-colors",
-                  rightPanelTab === 'clip' ? "bg-rv-panel text-rv-text-strong shadow-inner border border-rv-border-inset" : "text-rv-text-muted hover:text-rv-text"
+                  "flex-1 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.1em] font-bold transition-all relative border-l border-rv-border-inset",
+                  rightPanelTab === 'clip' ? "text-rv-orange after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[1px] after:bg-rv-orange" : "text-rv-text-muted hover:text-rv-text"
                 )}
                 onClick={() => setRightPanelTab('clip')}
               >
-                <Icon icon={Scissors} size={12} />
+                <Icon icon={Scissors} size={11} />
                 Markers
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 bg-rv-panel/50">
               {rightPanelTab === 'options' ? (
                 <FFmpegPanel 
                   options={ffmpegOptions} 
@@ -222,9 +207,9 @@ export const MediaPage: React.FC<MediaPageProps> = ({
                 />
               )}
             </div>
-          </Panel>
-        </ResizablePanel>
-      </Group>
+          </RvPanel>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 };

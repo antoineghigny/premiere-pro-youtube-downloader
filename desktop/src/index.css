@@ -27,9 +27,16 @@
   --color-rv-accent-hover:  #0086f0;
   --color-rv-accent-muted:  rgba(0, 120, 215, 0.2);
   
+  /* Resolve Orange for Primary Actions */
+  --color-rv-orange:        #e68a00;
+  --color-rv-orange-hover:  #ff9900;
+  
   --color-rv-ok:      #4ea64e;
   --color-rv-warn:    #d6a43a;
   --color-rv-error:   #c14b4b;
+
+  /* Playhead */
+  --color-rv-playhead: #ff3b30;
 
   /* Radii stricts */
   --radius-rv-0: 0;
@@ -65,38 +72,46 @@ body {
     background-color: var(--color-rv-panel);
     border: 1px solid var(--color-rv-border-inset);
     border-top: 1px solid var(--color-rv-border-relief);
+    border-left: 1px solid var(--color-rv-border-relief);
   }
   
   .rv-label {
-    @apply text-[11px] font-semibold uppercase tracking-[0.05em] text-rv-text-muted;
+    @apply text-[10px] font-semibold uppercase tracking-[0.08em] text-rv-text-muted;
     font-family: var(--font-sans);
   }
 
   .rv-panel-header {
-    @apply bg-rv-raised border-b border-rv-border-inset text-[11px] font-semibold uppercase tracking-[0.06em] text-rv-text-muted px-2 flex items-center;
+    @apply bg-rv-raised border-b border-rv-border-inset text-[10px] font-semibold uppercase tracking-[0.08em] text-rv-text-muted px-2 flex items-center;
     height: 22px;
+    border-top: 1px solid var(--color-rv-border-relief);
   }
 
   .rv-button {
-    @apply bg-rv-button border border-rv-border-inset border-t-rv-border-relief border-l-rv-border-relief text-rv-text px-2.5 py-0.5 rounded-[2px] text-xs leading-none transition-colors inline-flex items-center justify-center gap-1.5 outline-none;
+    @apply bg-rv-button border border-rv-border-inset border-t-rv-border-relief border-l-rv-border-relief text-rv-text px-2.5 py-0.5 rounded-[2px] text-[11px] leading-none transition-colors inline-flex items-center justify-center gap-1.5 outline-none font-medium;
     height: 22px;
     appearance: none;
   }
   
-  .rv-button:hover:not(:disabled) { @apply bg-rv-button-hover; }
+  .rv-button:hover:not(:disabled) { @apply bg-rv-button-hover text-rv-text-strong; }
   .rv-button:active:not(:disabled) { @apply bg-rv-button-pressed; }
+  .rv-button:disabled { @apply opacity-40 grayscale; }
   
+  .rv-button-primary {
+    @apply bg-rv-orange text-white border-rv-border-inset border-t-rv-border-relief border-l-rv-border-relief;
+  }
+  .rv-button-primary:hover:not(:disabled) { @apply bg-rv-orange-hover; }
+
   .rv-button-active {
-    @apply bg-rv-button-pressed border-rv-border-inset text-rv-text-strong;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);
+    @apply bg-rv-button-pressed border-rv-border-inset text-rv-accent shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)];
   }
 
   .rv-input {
-    @apply bg-rv-input border border-rv-border-inset text-rv-text-strong px-2 text-xs rounded-[2px] outline-none;
+    @apply bg-rv-input border border-rv-border-inset text-rv-text-strong px-2 text-[11px] rounded-[2px] outline-none transition-colors;
     height: 24px;
     appearance: none;
     user-select: text;
     -webkit-user-select: text;
+    border-bottom-color: var(--color-rv-border-strong);
   }
   
   .rv-input:focus {
@@ -104,21 +119,55 @@ body {
   }
 
   .rv-input::placeholder { color: var(--color-rv-text-disabled); }
+
+  .rv-tab {
+    @apply flex flex-col items-center justify-center gap-1 px-4 h-full border-r border-rv-border-inset transition-all relative overflow-hidden grayscale hover:grayscale-0;
+  }
+  
+  .rv-tab-active {
+    @apply bg-rv-raised grayscale-0;
+    box-shadow: inset 0 -2px 0 var(--color-rv-orange);
+  }
+  
+  .rv-tab-active .rv-icon {
+    @apply text-rv-text-strong;
+  }
+
+  .rv-checkerboard {
+    background-color: #1a1a1a;
+    background-image: 
+      linear-gradient(45deg, #141414 25%, transparent 25%),
+      linear-gradient(-45deg, #141414 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #141414 75%),
+      linear-gradient(-45deg, transparent 75%, #141414 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  }
 }
 
 /* Industrial Scrollbars */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #333333; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #444444; }
+::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 0px; border: 1px solid var(--color-rv-border-inset); }
+::-webkit-scrollbar-thumb:hover { background: #4a4a4a; }
 ::-webkit-scrollbar-corner { background: transparent; }
 
 /* Hitbox invisible pour splitters */
 [data-panel-resize-handle] {
-  @apply relative bg-rv-border-inset transition-colors;
+  @apply relative bg-rv-border-inset transition-colors z-50;
 }
 
 [data-panel-resize-handle][data-resize-handle-active],
 [data-panel-resize-handle]:hover {
-  @apply bg-rv-border-strong;
+  @apply bg-rv-accent/50;
+}
+
+[data-panel-group-direction="horizontal"] > [data-panel-resize-handle] {
+  width: 4px;
+  cursor: col-resize;
+}
+
+[data-panel-group-direction="vertical"] > [data-panel-resize-handle] {
+  height: 4px;
+  cursor: row-resize;
 }

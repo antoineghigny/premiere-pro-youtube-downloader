@@ -13,19 +13,19 @@ export const StatusFooterBar: React.FC = () => {
   const summary = buildQueueStatusSummary(items);
   
   return (
-    <div className="h-[24px] bg-rv-raised border-t border-rv-border-inset flex items-center px-2 text-[10px] select-none gap-4">
+    <div className="h-[22px] bg-rv-raised border-t border-rv-border-inset flex items-center px-2 text-[9px] select-none gap-4 font-medium uppercase tracking-[0.05em]">
       {/* Queue Summary */}
-      <div className="flex items-center gap-4 pr-4 h-full">
+      <div className="flex items-center gap-4 pr-4 h-full border-r border-rv-border-inset">
         <div className="flex items-center gap-1.5 text-rv-text-muted">
-          <Icon icon={Activity} size={12} className={cn(summary.activeCount > 0 ? "text-rv-accent" : "text-rv-text-disabled")} />
-          <span className="font-semibold tracking-wider">{summary.activeCount} ACTIVE</span>
+          <Icon icon={Activity} size={11} className={cn(summary.activeCount > 0 ? "text-rv-accent" : "text-rv-text-disabled")} />
+          <span className="font-bold">{summary.activeCount} ACTIVE</span>
         </div>
         <div className="flex items-center gap-1.5 text-rv-text-muted">
-          <Icon icon={CheckCircle2} size={12} className={cn(summary.completedCount > 0 ? "text-rv-ok" : "text-rv-text-disabled")} />
-          <span className="font-semibold tracking-wider">{summary.completedCount} DONE</span>
+          <Icon icon={CheckCircle2} size={11} className={cn(summary.completedCount > 0 ? "text-rv-ok" : "text-rv-text-disabled")} />
+          <span className="font-bold">{summary.completedCount} DONE</span>
         </div>
-        <div className="h-[12px] w-px bg-rv-border-inset" />
-        <span className="text-rv-text-strong font-bold tracking-widest">{summary.totalCount} ITEMS</span>
+        <div className="h-[10px] w-px bg-rv-border-inset" />
+        <span className="text-rv-text-strong font-black tracking-widest">{summary.totalCount} ITEMS</span>
       </div>
 
       {/* Spacer */}
@@ -33,24 +33,27 @@ export const StatusFooterBar: React.FC = () => {
 
       {/* Backend Status */}
       <div className="flex items-center gap-2">
-        <div className="w-1.5 h-1.5 rounded-full bg-rv-ok shadow-[0_0_4px_rgba(78,166,78,0.5)]" />
-        <span className="text-rv-text-muted uppercase tracking-[0.1em] text-[9px] font-bold">Backend</span>
-        <span className="text-rv-text-strong font-mono">CONNECTED</span>
+        <div className={cn(
+          "w-1.5 h-1.5 rounded-full border border-rv-border-inset",
+          "bg-rv-ok"
+        )} />
+        <span className="text-rv-text-muted font-bold">Backend</span>
+        <span className="text-rv-text-strong font-mono tabular-nums opacity-80">CONNECTED</span>
       </div>
 
       {/* Premiere Status */}
       <div className="flex items-center gap-2 border-l border-rv-border-inset pl-4 h-full">
         <Icon 
           icon={Monitor} 
-          size={12} 
+          size={11} 
           className={cn(premiereRunning ? "text-rv-accent" : "text-rv-text-disabled")} 
         />
-        <span className="text-rv-text-muted uppercase tracking-[0.1em] text-[9px] font-bold">Premiere Pro</span>
+        <span className="text-rv-text-muted font-bold">Premiere</span>
         <span className={cn(
-          "font-mono",
+          "font-mono tabular-nums",
           premiereRunning ? "text-rv-text-strong" : "text-rv-text-disabled"
         )}>
-          {premiereRunning ? (projectName?.toUpperCase() || "CONNECTED") : "OFFLINE"}
+          {premiereRunning ? (projectName?.toUpperCase() || "READY") : "OFFLINE"}
         </span>
       </div>
     </div>

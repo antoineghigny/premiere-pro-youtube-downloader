@@ -11,16 +11,16 @@ export const MenuDropdown: React.FC<MenuDropdownProps> = ({ trigger, children })
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button className="px-3 hover:bg-rv-button-hover h-full flex items-center outline-none select-none text-rv-text hover:text-rv-text-strong transition-colors">
+        <button className="px-3 hover:bg-rv-raised h-full flex items-center outline-none select-none text-[11px] font-medium tracking-wide text-rv-text-muted hover:text-rv-text-strong transition-colors border-r border-rv-border-inset">
           {trigger}
         </button>
       </DropdownMenu.Trigger>
 
       <DropdownMenu.Portal>
         <DropdownMenu.Content 
-          className="min-w-[200px] bg-rv-panel border border-rv-border-inset shadow-lg z-50 p-1 animate-in fade-in zoom-in duration-75"
+          className="min-w-[220px] bg-rv-panel border border-rv-border-inset shadow-[0_15px_35px_rgba(0,0,0,0.6)] z-[100] p-1 animate-in fade-in zoom-in duration-75 rounded-[1px]"
           align="start"
-          sideOffset={0}
+          sideOffset={1}
         >
           {children}
         </DropdownMenu.Content>
@@ -38,16 +38,18 @@ export const MenuItem = React.forwardRef<
     disabled={disabled}
     onClick={onClick}
     className={cn(
-      "flex items-center justify-between px-2 py-1 text-xs outline-none cursor-default select-none transition-colors",
-      "text-rv-text hover:bg-rv-accent hover:text-black",
+      "flex items-center justify-between px-3 py-1 text-[11px] outline-none cursor-default select-none transition-colors rounded-[1px]",
+      "text-rv-text-strong hover:bg-rv-accent hover:text-white data-[highlighted]:bg-rv-accent data-[highlighted]:text-white",
       "data-[disabled]:text-rv-text-disabled data-[disabled]:pointer-events-none",
       className
     )}
   >
-    <span>{children}</span>
-    {shortcut && <span className="ml-4 text-[10px] opacity-60">{shortcut}</span>}
+    <span className="font-medium">{children}</span>
+    {shortcut && <span className="ml-8 text-[9px] font-mono opacity-50 tracking-tighter tabular-nums">{shortcut}</span>}
   </DropdownMenu.Item>
 ));
+
+MenuItem.displayName = 'MenuItem';
 
 export const MenuSeparator = () => (
   <DropdownMenu.Separator className="h-px bg-rv-border-inset my-1 mx-1" />
