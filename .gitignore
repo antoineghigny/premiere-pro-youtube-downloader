@@ -28,3 +28,6 @@ backend/*.wav
 backend/*.webm
 backend/*.mp3
 !backend/notification_sound.mp3
+tools/
+desktop/src-tauri/binaries/
+desktop/src-tauri/resources/

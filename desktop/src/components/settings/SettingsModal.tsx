@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, FolderOpen, LoaderCircle, Puzzle, Sparkles, Wand2, X } from 'lucide-react';
-
+import React, { useEffect, useState } from 'react';
+import { X, FolderOpen, Wand2, Puzzle, CheckCircle2, AlertTriangle, LoaderCircle } from 'lucide-react';
 import type { DesktopSettings, FFmpegPreset, IntegrationStatus } from '../../api/types';
 import { useTranslation } from '../../i18n';
 import { Button } from '../common/Button';
 import { Checkbox } from '../common/Checkbox';
 import { Dropdown } from '../common/Dropdown';
-import { PresetManager } from './PresetManager';
+import { Icon } from '../common/Icon';
+import { cn } from '@/lib/utils';
 
 type SettingsModalProps = {
   open: boolean;
@@ -31,339 +31,199 @@ export function SettingsModal({
   onClose,
   onSave,
   onPickFolder,
-  onLoadPreset,
-  onDeletePreset,
   onRevealPath,
   integrationStatus,
   integrationLoading,
-  integrationMessage,
   integrationBusy,
   onInstallPremiere,
   onOpenBrowserSetup,
 }: SettingsModalProps) {
   const t = useTranslation();
   const [draft, setDraft] = useState(settings);
-  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<'general' | 'integrations' | 'presets'>('general');
 
   useEffect(() => {
-    setDraft(settings);
-  }, [settings]);
+    if (open) setDraft(settings);
+  }, [open, settings]);
 
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
 
   const premiereDetected = integrationStatus?.premiereInstalled ?? false;
   const premiereReady = integrationStatus?.premierePanelInstalled ?? false;
-  const chromeDetected = integrationStatus?.chromeInstalled ?? false;
   const browserReady = integrationStatus?.browserAddonReady ?? false;
-  const conflicts = integrationStatus?.conflicts ?? [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(2,3,8,0.78)] px-4 py-10 backdrop-blur-md">
-      <div className="panel-surface modal-shell max-h-full w-full max-w-5xl overflow-auto p-0">
-        <div className="flex items-center justify-between border-b border-white/8 px-6 py-5">
-          <div>
-            <div className="text-xs uppercase tracking-[0.28em] text-[var(--text-muted)]">{t('settings.preferencesLabel')}</div>
-            <div className="text-xl font-semibold text-white">{t('settings.desktopDefaults')}</div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<X className="h-4 w-4" />}
-            onClick={onClose}
-          />
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/65 select-none">
+      <div className="bg-rv-panel border border-rv-border-inset shadow-2xl w-[800px] h-[540px] flex flex-col overflow-hidden rounded-[4px]">
+        {/* Header */}
+        <div className="rv-panel-header shrink-0">
+          <span className="flex-1 uppercase tracking-[0.1em] text-[10px] font-semibold">Project Settings</span>
+          <button onClick={onClose} className="hover:text-rv-text-strong transition-colors">
+            <Icon icon={X} size={14} />
+          </button>
         </div>
-        <div className="grid gap-6 px-6 py-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="settings-field">
-                <span>{t('settings.defaultResolution')}</span>
-                <Dropdown
-                  value={draft.resolution}
-                  options={[
-                    { value: '2160', label: '4K' },
-                    { value: '1440', label: '1440p' },
-                    { value: '1080', label: '1080p' },
-                    { value: '720', label: '720p' },
-                    { value: '480', label: '480p' },
-                  ]}
-                  onChange={(event) => setDraft((current) => ({ ...current, resolution: event.target.value }))}
-                />
-              </label>
-              <label className="settings-field">
-                <span>{t('settings.concurrentDownloads')}</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={8}
-                  value={draft.concurrentDownloads}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      concurrentDownloads: Number.parseInt(event.target.value, 10) || 1,
-                    }))
-                  }
-                  className="h-10 rounded-2xl border border-white/10 bg-white/6 px-3 text-sm text-white outline-none focus:border-[var(--color-main)]"
-                />
-              </label>
-            </div>
-            <div className="settings-field">
-              <span>{t('settings.defaultDownloadFolder')}</span>
-              <div className="flex gap-3">
-                <input
-                  value={draft.downloadPath}
-                  onChange={(event) => setDraft((current) => ({ ...current, downloadPath: event.target.value }))}
-                  className="h-10 flex-1 rounded-2xl border border-white/10 bg-white/6 px-3 text-sm text-white outline-none focus:border-[var(--color-main)]"
-                />
-                <Button
-                  variant="secondary"
-                  icon={<FolderOpen className="h-4 w-4" />}
-                  onClick={async () => {
-                    const selected = await onPickFolder(draft.downloadPath);
-                    if (selected) {
-                      setDraft((current) => ({ ...current, downloadPath: selected }));
-                    }
-                  }}
-                >
-                  {t('settings.browse')}
-                </Button>
-              </div>
-            </div>
-            <label className="settings-field">
-              <span>Gemini API Key</span>
-              <input
-                type="password"
-                value={draft.geminiApiKey}
-                placeholder="AIza..."
-                onChange={(event) => setDraft((current) => ({ ...current, geminiApiKey: event.target.value }))}
-                className="h-10 rounded-2xl border border-white/10 bg-white/6 px-3 text-sm text-white outline-none focus:border-[var(--color-main)]"
-              />
-            </label>
-            <label className="settings-field">
-              <span>{t('settings.defaultDestination')}</span>
-              <Dropdown
-                value={draft.outputTarget}
-                options={[
-                  { value: 'downloadFolder', label: t('settings.downloadsFolder') },
-                  { value: 'premiereProject', label: t('settings.currentPremiereProject') },
-                ]}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    outputTarget: event.target.value as DesktopSettings['outputTarget'],
-                  }))
-                }
-              />
-            </label>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="settings-field">
-                <span>{t('settings.theme')}</span>
-                <Dropdown
-                  value={draft.theme}
-                  options={[
-                    { value: 'dark', label: t('settings.dark') },
-                    { value: 'light', label: t('settings.light') },
-                  ]}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      theme: event.target.value as DesktopSettings['theme'],
-                    }))
-                  }
-                />
-              </label>
-              <label className="settings-field">
-                <span>{t('settings.language')}</span>
-                <Dropdown
-                  value={draft.language}
-                  options={[
-                    { value: 'en', label: 'English' },
-                    { value: 'fr', label: 'Français' },
-                  ]}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      language: event.target.value as DesktopSettings['language'],
-                    }))
-                  }
-                />
-              </label>
-            </div>
-            <div className="grid gap-4 rounded-3xl border border-white/10 bg-white/4 p-4 md:grid-cols-2">
-              <Checkbox
-                checked={draft.videoOnly}
-                onChange={(event) => setDraft((current) => ({ ...current, videoOnly: event.target.checked }))}
-                label={t('settings.videoOnlyDefault')}
-              />
-              <Checkbox
-                checked={draft.askDownloadPathEachTime}
-                onChange={(event) => setDraft((current) => ({ ...current, askDownloadPathEachTime: event.target.checked }))}
-                label={t('settings.askDownloadPath')}
-              />
-              <Checkbox
-                checked={draft.askAudioPathEachTime}
-                onChange={(event) => setDraft((current) => ({ ...current, askAudioPathEachTime: event.target.checked }))}
-                label={t('settings.askAudioPath')}
-              />
-              <Checkbox
-                checked={draft.defaultImportToPremiere}
-                onChange={(event) => setDraft((current) => ({ ...current, defaultImportToPremiere: event.target.checked }))}
-                label={t('settings.autoImportPremiere')}
-              />
-            </div>
-            <div className="rounded-3xl border border-white/10 bg-white/4 p-4">
-              <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
-                <Sparkles className="h-4 w-4 text-[var(--color-main)]" />
-                {t('settings.appsBrowser')}
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex h-full flex-col rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-white">{t('settings.premierePro')}</div>
-                      <div className="mt-1 text-sm text-[var(--text-muted)]">
-                        {integrationLoading
-                          ? t('settings.checkingPremiere')
-                          : conflicts.length > 0
-                            ? t('settings.premiereConflicts')
-                            : premiereDetected
-                            ? premiereReady
-                              ? t('settings.premiereReady')
-                              : t('settings.premiereFinishSetup')
-                            : t('settings.premiereNotFound')}
-                      </div>
-                    </div>
-                    {premiereReady ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Wand2 className="h-5 w-5 text-sky-200" />}
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar */}
+          <div className="w-[180px] bg-rv-raised border-r border-rv-border-inset flex flex-col shrink-0">
+            {(['general', 'integrations', 'presets'] as const).map((id) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={cn(
+                  "px-4 py-2 text-left text-[11px] transition-colors border-l-2",
+                  activeTab === id 
+                    ? "bg-rv-panel text-rv-text-strong border-l-rv-accent font-medium" 
+                    : "text-rv-text-muted border-l-transparent hover:text-rv-text hover:bg-rv-panel/50"
+                )}
+              >
+                {id.charAt(0).toUpperCase() + id.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 bg-rv-panel p-6 overflow-y-auto">
+            {activeTab === 'general' && (
+              <div className="flex flex-col gap-6 max-w-[420px]">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-rv-text-muted uppercase tracking-tight">Default Resolution</label>
+                  <Dropdown
+                    value={draft.resolution}
+                    options={[
+                      { value: '2160', label: '4K (2160p)' },
+                      { value: '1440', label: '1440p' },
+                      { value: '1080', label: '1080p' },
+                      { value: '720', label: '720p' },
+                      { value: '480', label: '480p' },
+                    ]}
+                    onChange={(e) => setDraft({ ...draft, resolution: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-rv-text-muted uppercase tracking-tight">Download Path</label>
+                  <div className="flex gap-2">
+                    <input 
+                      value={draft.downloadPath}
+                      onChange={(e) => setDraft({ ...draft, downloadPath: e.target.value })}
+                      className="rv-input flex-1 h-[24px]"
+                    />
+                    <Button size="sm" onClick={async () => {
+                       const p = await onPickFolder(draft.downloadPath);
+                       if (p) setDraft({ ...draft, downloadPath: p });
+                    }}>Browse</Button>
                   </div>
-                  <div className="mt-4 flex flex-col gap-3 pt-2">
-                    <Button
-                      className="w-full"
-                      variant="secondary"
-                      disabled={integrationLoading || !premiereDetected || integrationBusy !== null}
-                      icon={integrationBusy === 'premiere' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                      onClick={() => {
-                        void onInstallPremiere();
-                      }}
-                    >
-                      {premiereReady ? t('settings.refreshPremiereSetup') : t('settings.setupPremiere')}
-                    </Button>
-                    {integrationStatus?.cepInstallPath ? (
-                      <Button
-                        className="w-full"
-                        variant="ghost"
-                        icon={<FolderOpen className="h-4 w-4" />}
-                        onClick={() => {
-                          void onRevealPath(integrationStatus.cepInstallPath!);
-                        }}
-                      >
-                        {t('settings.openPanelFolder')}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-rv-text-muted uppercase tracking-tight">Gemini API Key</label>
+                  <input 
+                    type="password"
+                    value={draft.geminiApiKey}
+                    placeholder="AIza..."
+                    onChange={(e) => setDraft({ ...draft, geminiApiKey: e.target.value })}
+                    className="rv-input w-full h-[24px]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-rv-border-inset">
+                   <Checkbox 
+                     checked={draft.videoOnly}
+                     onChange={(e) => setDraft({ ...draft, videoOnly: e.target.checked })}
+                     label="Video Only Default"
+                   />
+                   <Checkbox 
+                     checked={draft.defaultImportToPremiere}
+                     onChange={(e) => setDraft({ ...draft, defaultImportToPremiere: e.target.checked })}
+                     label="Auto-Import to Premiere"
+                   />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'integrations' && (
+              <div className="flex flex-col gap-8">
+                {/* Premiere Section */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <Icon icon={Wand2} size={14} className="text-rv-accent" />
+                    <h3 className="text-[12px] font-semibold text-rv-text-strong uppercase tracking-wider">Adobe Premiere Pro</h3>
+                  </div>
+                  <div className="bg-rv-raised border border-rv-border-inset p-4 rounded-[2px] flex items-center justify-between">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[11px] text-rv-text">
+                        {integrationLoading ? "Status: Checking..." : premiereReady ? "Status: Connected & Ready" : "Status: Setup Required"}
+                      </span>
+                      <span className="text-[9px] text-rv-text-disabled truncate max-w-[300px]">
+                        {integrationStatus?.cepInstallPath || "Path not detected"}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="secondary" onClick={onInstallPremiere} disabled={integrationBusy === 'premiere'}>
+                        {integrationBusy === 'premiere' ? <Icon icon={LoaderCircle} size={12} className="animate-spin" /> : "Refresh Panel"}
                       </Button>
-                    ) : null}
+                      {integrationStatus?.cepInstallPath && (
+                        <Button size="sm" variant="ghost" onClick={() => onRevealPath(integrationStatus.cepInstallPath!)}>
+                           <Icon icon={FolderOpen} size={12} />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex h-full flex-col rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-white">{t('settings.chromeExtension')}</div>
-                      <div className="mt-1 text-sm text-[var(--text-muted)]">
-                        {integrationLoading
-                          ? t('settings.checkingBrowser')
-                          : browserReady
-                            ? t('settings.browserReady')
-                            : chromeDetected
-                              ? t('settings.browserDetected')
-                              : t('settings.browserNotDetected')}
-                      </div>
-                    </div>
-                    {browserReady ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Puzzle className="h-5 w-5 text-sky-200" />}
+
+                {/* Browser Section */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <Icon icon={Puzzle} size={14} className="text-rv-accent" />
+                    <h3 className="text-[12px] font-semibold text-rv-text-strong uppercase tracking-wider">Chrome Extension</h3>
                   </div>
-                  <div className="mt-4 flex flex-col gap-3 pt-2">
-                    <Button
-                      className="w-full"
-                      variant="secondary"
-                      disabled={integrationLoading || integrationBusy !== null}
-                      icon={integrationBusy === 'browser' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Puzzle className="h-4 w-4" />}
-                      onClick={() => {
-                        void onOpenBrowserSetup();
-                      }}
-                    >
-                      {browserReady ? t('settings.openExtensionFolder') : t('settings.prepareBrowserExtension')}
+                  <div className="bg-rv-raised border border-rv-border-inset p-4 rounded-[2px] flex items-center justify-between">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[11px] text-rv-text">
+                        {browserReady ? "Status: Extension Active" : "Status: Install Required"}
+                      </span>
+                    </div>
+                    <Button size="sm" variant="secondary" onClick={onOpenBrowserSetup} disabled={integrationBusy === 'browser'}>
+                       {integrationBusy === 'browser' ? <Icon icon={LoaderCircle} size={12} className="animate-spin" /> : "Install / Setup"}
                     </Button>
                   </div>
                 </div>
               </div>
-              {conflicts.length > 0 ? (
-                <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-100">
-                    <AlertTriangle className="h-4 w-4" />
-                    {t('settings.olderPanelsNeedCleanup')}
-                  </div>
-                  <div className="space-y-3">
-                    {conflicts.map((conflict) => (
-                      <div
-                        key={`${conflict.id}:${conflict.path}`}
-                        className="rounded-2xl border border-white/8 bg-black/15 px-3 py-3 text-sm text-[var(--text-muted)]"
-                      >
-                        <div className="font-medium text-white">{conflict.id}</div>
-                        <div className="mt-1 break-all">{conflict.reason}</div>
-                        <div className="mt-1 break-all text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                          {conflict.scope} {t('settings.cepFolder')}
-                        </div>
-                        <div className="mt-1 break-all text-xs text-[var(--text-muted)]">{conflict.path}</div>
-                        <Button
-                          className="mt-3"
-                          variant="ghost"
-                          size="sm"
-                          icon={<FolderOpen className="h-4 w-4" />}
-                          onClick={() => {
-                            void onRevealPath(conflict.path);
-                          }}
-                        >
-                          {t('settings.openFolder')}
-                        </Button>
+            )}
+
+            {activeTab === 'presets' && (
+              <div className="flex flex-col gap-3">
+                <h3 className="text-[11px] text-rv-text-muted uppercase tracking-tight mb-2">Export Presets</h3>
+                {draft.ffmpegPresets.map((preset) => (
+                   <div key={preset.id} className="bg-rv-raised border border-rv-border-inset p-3 flex items-center justify-between group rounded-[2px]">
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-medium text-rv-text-strong">{preset.name}</span>
+                        <span className="text-[9px] text-rv-text-disabled uppercase">
+                          {preset.options.outputFormat} · {preset.options.videoCodec} · {preset.options.audioCodec}
+                        </span>
                       </div>
-                    ))}
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                         <Button size="sm" variant="danger" onClick={() => {
+                           setDraft({ ...draft, ffmpegPresets: draft.ffmpegPresets.filter(p => p.id !== preset.id) });
+                         }}>Delete</Button>
+                      </div>
+                   </div>
+                ))}
+                {draft.ffmpegPresets.length === 0 && (
+                  <div className="text-[11px] text-rv-text-disabled italic text-center py-10 border border-dashed border-rv-border-inset">
+                    No presets saved yet. Create one from the Options panel.
                   </div>
-                </div>
-              ) : null}
-              {integrationMessage ? (
-                <div className="mt-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--text-muted)]">
-                  {integrationMessage}
-                </div>
-              ) : null}
-            </div>
+                )}
+              </div>
+            )}
           </div>
-          <PresetManager
-            presets={draft.ffmpegPresets}
-            onLoadPreset={onLoadPreset}
-            onDeletePreset={async (presetId) => {
-              const nextPresets = await onDeletePreset(presetId);
-              setDraft((current) => ({ ...current, ffmpegPresets: nextPresets }));
-            }}
-          />
         </div>
-        <div className="flex items-center justify-end gap-3 border-t border-white/8 px-6 py-5">
-          <Button
-            variant="ghost"
-            onClick={onClose}
-          >
-            {t('settings.cancel')}
-          </Button>
-          <Button
-            disabled={saving}
-            onClick={async () => {
-              setSaving(true);
-              try {
-                await onSave(draft);
-                onClose();
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
-            {t('settings.saveSettings')}
-          </Button>
+
+        {/* Footer */}
+        <div className="h-[48px] bg-rv-raised border-t border-rv-border-inset flex items-center justify-end px-4 gap-2 shrink-0">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" className="px-6 font-semibold" onClick={() => onSave(draft).then(onClose)}>Save Settings</Button>
         </div>
       </div>
     </div>

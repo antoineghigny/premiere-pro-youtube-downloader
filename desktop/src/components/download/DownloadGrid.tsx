@@ -6,11 +6,11 @@ import { EmptyState } from './EmptyState';
 type DownloadGridProps = {
   items: DownloadItem[];
   onRetry: (item: DownloadItem) => void;
-  onRemove: (item: DownloadItem) => void;
+  onDelete: (item: DownloadItem) => void;
   onReveal: (item: DownloadItem) => void;
 };
 
-export function DownloadGrid({ items, onRetry, onRemove, onReveal }: DownloadGridProps) {
+export function DownloadGrid({ items, onRetry, onDelete, onReveal }: DownloadGridProps) {
   const t = useTranslation();
 
   if (items.length === 0) {
@@ -29,7 +29,7 @@ export function DownloadGrid({ items, onRetry, onRemove, onReveal }: DownloadGri
           key={item.requestId}
           item={item}
           onRetry={onRetry}
-          onRemove={onRemove}
+          onDelete={onDelete}
           onReveal={onReveal}
         />
       ))}

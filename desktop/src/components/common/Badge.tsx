@@ -1,27 +1,24 @@
 import { type ReactNode } from 'react';
-
-import { Badge as ShadcnBadge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type BadgeProps = {
-  color?: 'purple' | 'green' | 'blue' | 'red' | 'neutral';
+  variant?: 'ok' | 'warn' | 'error' | 'neutral' | 'accent';
   children: ReactNode;
+  className?: string;
 };
 
-export function Badge({ color = 'neutral', children }: BadgeProps) {
-  const className =
-    color === 'purple'
-      ? 'border-[var(--color-main)]/40 bg-[var(--color-main)]/14 text-[var(--color-grey-light)]'
-      : color === 'green'
-        ? 'border-emerald-400/30 bg-emerald-500/14 text-emerald-100'
-        : color === 'blue'
-          ? 'border-sky-400/30 bg-sky-500/14 text-sky-100'
-          : color === 'red'
-            ? 'border-red-400/30 bg-red-500/14 text-red-100'
-            : 'border-white/10 bg-white/5 text-[var(--text-muted)]';
-
+export function Badge({ variant = 'neutral', children, className }: BadgeProps) {
   return (
-    <ShadcnBadge className={className}>
+    <div className={cn(
+      "inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-[10px] uppercase font-medium border leading-none tracking-tight",
+      variant === 'ok' && "bg-rv-ok/10 border-rv-ok/30 text-rv-ok",
+      variant === 'warn' && "bg-rv-warn/10 border-rv-warn/30 text-rv-warn",
+      variant === 'error' && "bg-rv-error/10 border-rv-error/30 text-rv-error",
+      variant === 'accent' && "bg-rv-accent/10 border-rv-accent/30 text-rv-accent",
+      variant === 'neutral' && "bg-rv-input border-rv-border-inset text-rv-text-muted",
+      className
+    )}>
       {children}
-    </ShadcnBadge>
+    </div>
   );
 }

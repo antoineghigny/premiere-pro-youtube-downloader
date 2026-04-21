@@ -1,22 +1,25 @@
+import React from 'react';
 import type { DownloadItem } from '../../api/types';
 import { useTranslation } from '../../i18n';
 import { DownloadRow } from './DownloadRow';
+import { DownloadCard } from './DownloadCard';
 import { EmptyState } from './EmptyState';
+import { cn } from '@/lib/utils';
 
 type DownloadTableProps = {
   items: DownloadItem[];
   onRetry: (item: DownloadItem) => void;
-  onRemove: (item: DownloadItem) => void;
+  onDelete: (item: DownloadItem) => void;
   onReveal: (item: DownloadItem) => void;
-  onMove: (sourceId: string, targetId: string) => void;
+  viewMode?: 'list' | 'grid';
 };
 
 export function DownloadTable({
   items,
   onRetry,
-  onRemove,
+  onDelete,
   onReveal,
-  onMove,
+  viewMode = 'list',
 }: DownloadTableProps) {
   const t = useTranslation();
 
@@ -29,27 +32,44 @@ export function DownloadTable({
     );
   }
 
-  return (
-    <div className="panel-surface space-y-3 px-4 py-4">
-      <div className="hidden grid-cols-[72px_minmax(0,1.8fr)_1.25fr_0.65fr_0.7fr_0.5fr_0.5fr_auto] gap-4 px-4 text-[11px] uppercase tracking-[0.24em] text-[var(--text-muted)] xl:grid">
-        <span>{t('downloadTable.thumb')}</span>
-        <span>{t('downloadTable.title')}</span>
-        <span>{t('downloadTable.progress')}</span>
-        <span>{t('downloadTable.total')}</span>
-        <span>{t('downloadTable.speed')}</span>
-        <span>{t('downloadTable.eta')}</span>
-        <span>{t('downloadTable.elapsed')}</span>
-        <span className="text-right">{t('downloadTable.actions')}</span>
+  if (viewMode === 'grid') {
+    return (
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-px bg-rv-border-inset p-px overflow-y-auto h-full">
+        {items.map((item) => (
+          <DownloadCard
+            key={item.requestId}
+            item={item}
+            onRetry={onRetry}
+            onDelete={onDelete}
+            onReveal={onReveal}
+          />
+        ))}
       </div>
-      <div className="space-y-3">
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full overflow-y-auto">
+      {/* Table Header */}
+      <div className="flex items-center h-[22px] bg-rv-raised border-b border-rv-border-inset px-2 gap-4 text-[9px] uppercase tracking-wider text-rv-text-disabled select-none shrink-0">
+        <div className="w-[40px] shrink-0" />
+        <div className="flex-1 min-w-0">Title</div>
+        <div className="w-[180px]">Progress</div>
+        <div className="w-[80px] text-right">Size</div>
+        <div className="w-[100px] text-right">Speed</div>
+        <div className="w-[60px] text-right">Time</div>
+        <div className="w-[84px] text-right pr-2">Actions</div>
+      </div>
+      
+      {/* Rows */}
+      <div className="flex-1">
         {items.map((item) => (
           <DownloadRow
             key={item.requestId}
             item={item}
             onRetry={onRetry}
-            onRemove={onRemove}
+            onDelete={onDelete}
             onReveal={onReveal}
-            onMove={onMove}
           />
         ))}
       </div>

@@ -1,7 +1,8 @@
+import React from 'react';
 import { FolderOpen } from 'lucide-react';
-
 import { useTranslation } from '../../i18n';
 import { Button } from '../common/Button';
+import { Icon } from '../common/Icon';
 
 type FolderSelectorProps = {
   folder: string;
@@ -12,14 +13,15 @@ export function FolderSelector({ folder, onPickFolder }: FolderSelectorProps) {
   const t = useTranslation();
 
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-      <FolderOpen className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-      <div className="min-w-0 flex-1 truncate text-sm text-[var(--text-muted)]">
-        {folder || t('settings.defaultDownloadFolder')}
+    <div className="flex gap-1">
+      <div className="rv-input flex-1 flex items-center gap-2 px-2 overflow-hidden h-[28px]">
+        <Icon icon={FolderOpen} size={12} className="text-rv-text-disabled shrink-0" />
+        <span className="text-[11px] text-rv-text-muted truncate">
+          {folder || "Default Folder"}
+        </span>
       </div>
       <Button
         size="sm"
-        variant="ghost"
         onClick={onPickFolder}
       >
         {t('settings.browse')}

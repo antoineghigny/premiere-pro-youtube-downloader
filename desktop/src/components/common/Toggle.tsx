@@ -1,17 +1,25 @@
-import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
+import { Button } from './Button';
 
 type ToggleProps = {
   checked: boolean;
   onChange: (nextValue: boolean) => void;
   disabled?: boolean;
+  label?: string;
+  className?: string;
 };
 
-export function Toggle({ checked, onChange, disabled }: ToggleProps) {
+export function Toggle({ checked, onChange, disabled, label, className }: ToggleProps) {
   return (
-    <Switch
-      checked={checked}
+    <Button
+      variant="secondary"
+      size="sm"
+      active={checked}
+      onClick={() => onChange(!checked)}
       disabled={disabled}
-      onCheckedChange={onChange}
-    />
+      className={className}
+    >
+      {label || (checked ? 'ON' : 'OFF')}
+    </Button>
   );
 }

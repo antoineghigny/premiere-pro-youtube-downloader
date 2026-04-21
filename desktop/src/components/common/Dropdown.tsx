@@ -1,12 +1,8 @@
 import { type ChangeEvent, useEffect, useState } from 'react';
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import * as Select from '@radix-ui/react-select';
+import { Check, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Icon } from './Icon';
 
 export interface DropdownOption {
   value: string;
@@ -33,43 +29,55 @@ export function Dropdown({
   placeholder,
   onChange,
   disabled,
-  resetOnSelect,
 }: DropdownProps) {
-  const [internalValue, setInternalValue] = useState<string | undefined>(value ?? defaultValue);
-
-  useEffect(() => {
-    if (value !== undefined) {
-      setInternalValue(value);
-    }
-  }, [value]);
-
   return (
-    <Select
-      value={value !== undefined ? value : internalValue}
+    <Select.Root
+      value={value}
       defaultValue={defaultValue}
       disabled={disabled}
       onValueChange={(nextValue) => {
-        if (value === undefined) {
-          setInternalValue(resetOnSelect ? defaultValue : nextValue);
-        }
         onChange?.({
           target: { value: nextValue },
         } as ChangeEvent<HTMLSelectElement>);
       }}
     >
-      <SelectTrigger className={className}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem
-            key={option.value}
-            value={option.value}
-          >
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      <Select.Trigger
+        className={cn(
+          "rv-input w-full flex items-center justify-between gap-2 px-2 disabled:opacity-50 disabled:cursor-not-allowed group transition-colors hover:border-rv-border-strong",
+          className
+        )}
+      >
+        <Select.Value placeholder={placeholder} />
+        <Select.Icon>
+          <Icon icon={ChevronDown} size={12} className="text-rv-text-disabled group-hover:text-rv-text-muted" />
+        </Select.Icon>
+      </Select.Trigger>
+
+      <Select.Portal>
+        <Select.Content
+          className="bg-rv-panel border border-rv-border-inset shadow-lg z-[100] p-1 animate-in fade-in zoom-in duration-75 overflow-hidden rounded-[2px]"
+          position="popper"
+          sideOffset={2}
+        >
+          <Select.Viewport className="p-0">
+            {options.map((option) => (
+              <Select.Item
+                key={option.value}
+                value={option.value}
+                className={cn(
+                  "flex items-center justify-between px-2 py-1 text-xs outline-none cursor-default select-none transition-colors",
+                  "text-rv-text hover:bg-rv-accent hover:text-black data-[highlighted]:bg-rv-accent data-[highlighted]:text-black"
+                )}
+              >
+                <Select.ItemText>{option.label}</Select.ItemText>
+                <Select.ItemIndicator>
+                  <Icon icon={Check} size={12} />
+                </Select.ItemIndicator>
+              </Select.Item>
+            ))}
+          </Select.Viewport>
+        </Select.Content>
+      </Select.Portal>
+    </Select.Root>
   );
 }

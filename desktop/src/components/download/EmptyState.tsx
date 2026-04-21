@@ -1,4 +1,6 @@
+import React from 'react';
 import { Inbox } from 'lucide-react';
+import { Icon } from '../common/Icon';
 
 type EmptyStateProps = {
   title: string;
@@ -7,13 +9,13 @@ type EmptyStateProps = {
 
 export function EmptyState({ title, description }: EmptyStateProps) {
   return (
-    <div className="panel-surface flex min-h-[240px] flex-col items-center justify-center gap-4 px-6 py-10 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-white/10 bg-white/6">
-        <Inbox className="h-7 w-7 text-[var(--text-muted)]" />
+    <div className="flex flex-col items-center justify-center gap-4 h-full min-h-[200px] text-center p-8 bg-rv-panel/50 border border-dashed border-rv-border-inset rounded-[2px] m-4">
+      <div className="w-12 h-12 flex items-center justify-center rounded-full bg-rv-raised border border-rv-border-inset">
+        <Icon icon={Inbox} size={20} className="text-rv-text-disabled" />
       </div>
-      <div className="space-y-2">
-        <div className="text-lg font-semibold text-white">{title}</div>
-        <p className="max-w-lg text-sm leading-6 text-[var(--text-muted)]">{description}</p>
+      <div className="space-y-1">
+        <h3 className="text-[14px] font-semibold text-rv-text-muted uppercase tracking-wider">{title}</h3>
+        <p className="max-w-xs text-[11px] text-rv-text-disabled">{description}</p>
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
-import clsx from 'clsx';
-import { Grid2X2, LayoutList } from 'lucide-react';
-
+import React from 'react';
+import { LayoutGrid, List } from 'lucide-react';
 import type { ViewMode } from '../../api/types';
+import { cn } from '@/lib/utils';
+import { Icon } from '../common/Icon';
 
 type ViewToggleProps = {
   viewMode: ViewMode;
@@ -10,20 +11,20 @@ type ViewToggleProps = {
 
 export function ViewToggle({ viewMode, onChange }: ViewToggleProps) {
   return (
-    <div className="inline-flex items-center rounded-2xl border border-white/10 bg-white/5 p-1">
-      <button
-        type="button"
-        onClick={() => onChange('grid')}
-        className={clsx('toggle-chip', viewMode === 'grid' && 'toggle-chip-active')}
-      >
-        <Grid2X2 className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
+    <div className="flex border border-rv-border-inset rounded-[2px] overflow-hidden shrink-0">
+      <button 
+        className={cn("p-1 hover:bg-rv-button-hover", viewMode === 'list' ? "bg-rv-button-pressed text-rv-accent" : "bg-rv-button text-rv-text-muted")}
         onClick={() => onChange('list')}
-        className={clsx('toggle-chip', viewMode === 'list' && 'toggle-chip-active')}
+        title="List View"
       >
-        <LayoutList className="h-4 w-4" />
+        <Icon icon={List} size={12} />
+      </button>
+      <button 
+        className={cn("p-1 hover:bg-rv-button-hover", viewMode === 'grid' ? "bg-rv-button-pressed text-rv-accent" : "bg-rv-button text-rv-text-muted")}
+        onClick={() => onChange('grid')}
+        title="Grid View"
+      >
+        <Icon icon={LayoutGrid} size={12} />
       </button>
     </div>
   );

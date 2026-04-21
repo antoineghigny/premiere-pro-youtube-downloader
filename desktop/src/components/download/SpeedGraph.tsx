@@ -1,3 +1,5 @@
+import React from 'react';
+
 type SpeedGraphProps = {
   points: number[];
 };
@@ -20,17 +22,17 @@ export function SpeedGraph({ points }: SpeedGraphProps) {
   return (
     <svg
       viewBox="0 0 100 24"
-      className="h-6 w-20"
+      className="h-4 w-16"
       preserveAspectRatio="none"
     >
       <path
         d={areaPath}
-        fill="rgba(29, 209, 161, 0.14)"
+        fill="rgba(214, 156, 58, 0.12)"
       />
       <polyline
         fill="none"
-        stroke="rgba(32, 201, 151, 0.9)"
-        strokeWidth="2.5"
+        stroke="#d69c3a"
+        strokeWidth="1.5"
         points={coordinates}
         strokeLinecap="round"
         strokeLinejoin="round"
