@@ -1,54 +1,42 @@
 import React from 'react';
 import { DownloadRow } from './DownloadRow';
-import { DownloadCard } from './DownloadCard';
-import { EmptyState } from './EmptyState';
+import type { DownloadItem } from '../../api/types';
 
-export function DownloadTable({
-  items,
-  onRetry,
-  onDelete,
-  onReveal,
-  viewMode = 'list',
-}) {
-  if (items.length === 0) {
-    return <EmptyState title="No items in pool" description="Add a URL to get started" />;
-  }
+interface DownloadTableProps {
+  items: DownloadItem[];
+  onRetry: (item: DownloadItem) => void;
+  onDelete: (item: DownloadItem) => void;
+  onReveal: (item: DownloadItem) => void;
+  viewMode?: 'list' | 'grid';
+}
 
-  if (viewMode === 'grid') {
-    return (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-px bg-[#111] overflow-y-auto h-full">
-        {items.map((item) => (
-          <DownloadCard key={item.requestId} item={item} onRetry={onRetry} onDelete={onDelete} onReveal={onReveal} />
-        ))}
-      </div>
-    );
-  }
-
+export const DownloadTable: React.FC<DownloadTableProps> = ({ 
+  items, 
+  onRetry, 
+  onDelete, 
+  onReveal 
+}) => {
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#1a1a1a]">
-      {/* Table Header - DaVinci Resolve Style */}
-      <div className="flex items-center h-7 bg-[#282828] border-y border-[#111] px-4 text-[10px] text-[#888] font-bold uppercase tracking-wide shrink-0">
-        <div className="w-8 shrink-0"></div>
-        <div className="flex-1 min-w-0">Clip Name</div>
-        <div className="w-32 text-center">Status</div>
-        <div className="w-20 text-right">Size</div>
-        <div className="w-24 text-right">Speed</div>
-        <div className="w-16 text-right">ETA</div>
-        <div className="w-20 shrink-0"></div>
-      </div>
-      
-      {/* Rows */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {items.map((item) => (
-          <DownloadRow
-            key={item.requestId}
-            item={item}
-            onRetry={onRetry}
-            onDelete={onDelete}
-            onReveal={onReveal}
-          />
-        ))}
-      </div>
+    <div className="flex flex-col h-full bg-rv-window overflow-y-auto">
+      {items.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
+          <div className="text-[10px] text-rv-text-disabled uppercase font-black tracking-[0.3em] opacity-30 select-none">
+            MEDIA POOL EMPTY
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col">
+          {items.map((item) => (
+            <DownloadRow 
+              key={item.requestId}
+              item={item}
+              onRetry={() => onRetry(item)}
+              onDelete={() => onDelete(item)}
+              onReveal={() => onReveal(item)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
-}
+};

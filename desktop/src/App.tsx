@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FolderOpen, Sparkles } from 'lucide-react';
+import { FolderOpen, Sparkles, Scissors } from 'lucide-react';
 
 import {
   getBackendHealth,
@@ -13,8 +13,6 @@ import {
   DEFAULT_FFMPEG_OPTIONS,
   type DesktopSettings,
   type FFmpegOptions,
-  type FFmpegPreset,
-  type IntegrationActionResponse,
   type IntegrationStatus,
 } from './api/types';
 import { createT, TranslationProvider } from './i18n';
@@ -31,10 +29,6 @@ import { MediaPage } from './pages/MediaPage';
 import { CutPage } from './pages/CutPage';
 import { FusionPage } from './pages/FusionPage';
 
-function buildPresetName(options: FFmpegOptions) {
-  return `${options.outputFormat.toUpperCase()} / ${options.videoCodec.toUpperCase()} / ${options.audioCodec.toUpperCase()}`;
-}
-
 export default function App() {
   const { settings, setSettings, persistSettings } = useSettings();
   const premiereStatus = usePremiereStatus();
@@ -43,13 +37,11 @@ export default function App() {
   const premiereReady = premiereStatus.canImport;
 
   const [pageId, setPageId] = useState<'media' | 'cut' | 'fusion'>('cut');
-  const [backendConnected, setBackendConnected] = useState(false);
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
   const [folder, setFolder] = useState('');
   const [quality, setQuality] = useState(settings.resolution);
   const [outputTarget, setOutputTarget] = useState(settings.outputTarget);
-  const [ffmpegOpen, setFFmpegOpen] = useState(false);
   const [clipOpen, setClipOpen] = useState(false);
   const [clipStart, setClipStart] = useState('00:00:00.000');
   const [clipEnd, setClipEnd] = useState('00:00:30.000');
@@ -79,7 +71,7 @@ export default function App() {
     let isMounted = true;
     const poll = async () => {
       const healthy = await getBackendHealth();
-      if (isMounted) setBackendConnected(healthy);
+      if (isMounted) { /* setBackendConnected(healthy); */ }
     };
     poll();
     const intervalId = window.setInterval(poll, 4000);

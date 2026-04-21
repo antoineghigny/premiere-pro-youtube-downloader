@@ -1,12 +1,19 @@
 import React from 'react';
 import { FolderOpen, RefreshCcw, Trash2, CheckCircle2, AlertCircle, Clock, Activity } from 'lucide-react';
 import { formatBytes, formatElapsed, formatRepresentativeSpeed } from '../../utils/format';
-import { Button } from '../common/Button';
 import { ProgressBar } from './ProgressBar';
 import { Icon } from '../common/Icon';
 import { cn } from '@/lib/utils';
+import type { DownloadItem } from '../../api/types';
 
-export function DownloadRow({ item, onRetry, onDelete, onReveal }) {
+interface DownloadRowProps {
+  item: DownloadItem;
+  onRetry: (item: DownloadItem) => void;
+  onDelete: (item: DownloadItem) => void;
+  onReveal: (item: DownloadItem) => void;
+}
+
+export const DownloadRow: React.FC<DownloadRowProps> = ({ item, onRetry, onDelete, onReveal }) => {
   const isComplete = item.status === 'complete';
   const isFailed = item.status === 'failed';
   const isRunning = item.status === 'running' || item.status === 'starting';
