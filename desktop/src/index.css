@@ -166,7 +166,8 @@ body {
   background: transparent !important;
 }
 .flexlayout__tab_button--selected { 
-  @apply text-rv-orange bg-rv-panel !important;
+  @apply text-rv-orange bg-rv-panel;
+  background-color: var(--color-rv-panel) !important;
   box-shadow: inset 0 -2px 0 var(--color-rv-orange);
 }
 .flexlayout__tab_button--hover { @apply text-rv-text-strong; }
