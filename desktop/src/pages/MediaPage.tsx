@@ -146,7 +146,7 @@ export const MediaPage: React.FC<MediaPageProps> = ({
                 </div>
               </RvPanel>
             </Panel>
-          </Group>
+          </PanelGroup>
         </Panel>
 
         <PanelResizeHandle className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
