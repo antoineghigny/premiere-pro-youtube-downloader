@@ -5,7 +5,7 @@ import { useMotionStudio } from '../hooks/useMotionStudio';
 import { cn } from '@/lib/utils';
 import { Play, Square, Save, WandSparkles, Sparkles, Bot } from 'lucide-react';
 import { Icon } from '../components/common/Icon';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 
 interface FusionPageProps {
   studio: ReturnType<typeof useMotionStudio>;
@@ -55,9 +55,9 @@ export const FusionPage: React.FC<FusionPageProps> = ({ studio, settings }) => {
 
   return (
     <div className="flex-1 overflow-hidden bg-rv-window p-1">
-      <PanelGroup direction="vertical">
+      <Group orientation="vertical">
         <Panel defaultSize={70} minSize={30}>
-          <PanelGroup direction="horizontal">
+          <Group orientation="horizontal">
             {/* Left: Brief/Design/Source */}
             <Panel defaultSize={25} minSize={15}>
               <RvPanel className="h-full">
@@ -126,7 +126,7 @@ export const FusionPage: React.FC<FusionPageProps> = ({ studio, settings }) => {
               </RvPanel>
             </Panel>
 
-            <PanelResizeHandle className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
+            <Separator className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
 
             {/* Center: Preview */}
             <Panel defaultSize={50} minSize={30}>
@@ -187,7 +187,7 @@ export const FusionPage: React.FC<FusionPageProps> = ({ studio, settings }) => {
               </RvPanel>
             </Panel>
 
-            <PanelResizeHandle className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
+            <Separator className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
 
             {/* Right: Renders / Artifacts */}
             <Panel defaultSize={25} minSize={15}>
@@ -251,10 +251,10 @@ export const FusionPage: React.FC<FusionPageProps> = ({ studio, settings }) => {
                 </div>
               </RvPanel>
             </Panel>
-          </PanelGroup>
+          </Group>
         </Panel>
 
-        <PanelResizeHandle className="h-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
+        <Separator className="h-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
 
         {/* Bottom: Timeline */}
         <Panel defaultSize={30} minSize={20}>
@@ -298,7 +298,7 @@ export const FusionPage: React.FC<FusionPageProps> = ({ studio, settings }) => {
             </div>
           </RvPanel>
         </Panel>
-      </PanelGroup>
+      </Group>
     </div>
   );
 };

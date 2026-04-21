@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 import { Panel as RvPanel } from '../components/shell/Panel';
 import { PanelHeader } from '../components/shell/PanelHeader';
 import { UrlBar } from '../components/download/UrlBar';
@@ -71,10 +71,10 @@ export const MediaPage: React.FC<MediaPageProps> = ({
 
   return (
     <div className="flex-1 overflow-hidden bg-rv-window p-1">
-      <PanelGroup direction="horizontal">
+      <Group orientation="horizontal">
         {/* LEFT COLUMN: Ingestion & Media Pool */}
         <Panel defaultSize={30} minSize={20}>
-          <PanelGroup direction="vertical">
+          <Group orientation="vertical">
             <Panel defaultSize={40} minSize={20}>
               <RvPanel className="h-full">
                 <PanelHeader title="Ingestion" />
@@ -100,7 +100,7 @@ export const MediaPage: React.FC<MediaPageProps> = ({
               </RvPanel>
             </Panel>
             
-            <PanelResizeHandle className="h-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
+            <Separator className="h-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
             
             <Panel defaultSize={60} minSize={30}>
               <RvPanel className="h-full">
@@ -146,10 +146,10 @@ export const MediaPage: React.FC<MediaPageProps> = ({
                 </div>
               </RvPanel>
             </Panel>
-          </PanelGroup>
+          </Group>
         </Panel>
 
-        <PanelResizeHandle className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
+        <Separator className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
 
         {/* MIDDLE COLUMN: Monitor */}
         <Panel defaultSize={40} minSize={30}>
@@ -161,7 +161,7 @@ export const MediaPage: React.FC<MediaPageProps> = ({
            </RvPanel>
         </Panel>
 
-        <PanelResizeHandle className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
+        <Separator className="w-[1px] bg-rv-border-inset hover:bg-rv-accent/50 transition-colors" />
 
         {/* RIGHT COLUMN: Inspector */}
         <Panel defaultSize={30} minSize={20}>
@@ -209,7 +209,7 @@ export const MediaPage: React.FC<MediaPageProps> = ({
             </div>
           </RvPanel>
         </Panel>
-      </PanelGroup>
+      </Group>
     </div>
   );
 };
