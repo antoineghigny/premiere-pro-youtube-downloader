@@ -44,13 +44,18 @@ export const DownloadRow: React.FC<DownloadRowProps> = ({ item, onRetry, onDelet
          />
       </div>
 
-      <div className="flex-1 min-w-0 flex items-center gap-2">
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
         <span className={cn(
           "text-[10px] truncate font-bold uppercase tracking-tight",
           isComplete ? "text-rv-text-strong" : isFailed ? "text-rv-error" : "text-rv-text"
         )}>
           {item.title}
         </span>
+        {isFailed && item.error && (
+          <span className="text-[8px] text-rv-error font-bold uppercase truncate opacity-80 leading-none mt-0.5">
+            Error: {item.error}
+          </span>
+        )}
       </div>
 
       <div className="w-24 flex items-center px-2">

@@ -124,6 +124,11 @@ export default function App() {
     let resolvedOutputTarget = outputTarget;
     let resolvedDownloadPath = folder || settings.downloadPath;
 
+    if (!resolvedDownloadPath && resolvedOutputTarget === 'downloadFolder') {
+      setUrlError('Please select a download folder first.');
+      return;
+    }
+
     if (resolvedOutputTarget === 'premiereProject') {
       if (!premiereStatus.running || !premiereStatus.cepRegistered || !premiereStatus.projectOpen) {
         setUrlError(premiereStatus.reason);
@@ -136,6 +141,8 @@ export default function App() {
         resolvedOutputTarget = 'downloadFolder';
       }
     }
+
+    console.log('[YT2PP] Queueing download:', { url: normalizedUrl, path: resolvedDownloadPath, target: resolvedOutputTarget });
 
     setUrlError('');
     downloads.queueDownload(

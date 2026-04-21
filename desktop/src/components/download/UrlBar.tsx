@@ -47,6 +47,12 @@ export const UrlBar: React.FC<UrlBarProps> = ({
           <DaVinciInput
             value={url}
             onChange={(e) => onUrlChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && url.trim() && !infoLoading) {
+                e.preventDefault();
+                onQueueDownload();
+              }
+            }}
             className={cn("w-full pl-9", infoError && "border-rv-error")}
             placeholder="Paste YouTube or Video URL..."
           />
@@ -66,8 +72,11 @@ export const UrlBar: React.FC<UrlBarProps> = ({
             value={quality}
             options={[
               { value: 'highest', label: 'HIGHEST' },
+              { value: '2160', label: '4K' },
+              { value: '1440', label: '1440p' },
               { value: '1080', label: '1080p' },
               { value: '720', label: '720p' },
+              { value: '480', label: '480p' },
             ]}
             onChange={(e) => onQualityChange(e.target.value)}
             className="h-6 w-full text-[10px] font-bold tracking-tight uppercase"
