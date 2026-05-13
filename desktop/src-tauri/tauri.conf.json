@@ -31,6 +31,6 @@
     "targets": ["nsis", "msi", "dmg", "appimage"],
     "externalBin": ["binaries/yt-dlp", "binaries/ffmpeg"],
     "resources": ["resources/**/*"],
-    "icon": ["icons/icon.ico"]
+    "icon": ["icons/icon.png"]
   }
 }

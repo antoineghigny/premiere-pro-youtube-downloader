@@ -346,8 +346,8 @@ mod tests {
     #[test]
     fn project_folder_is_derived_from_saved_project_path() {
         assert_eq!(
-            project_folder_from_path(r"C:\Projects\Edit\MyEdit.prproj"),
-            Some(r"C:\Projects\Edit".to_string())
+            project_folder_from_path("/Projects/Edit/MyEdit.prproj"),
+            Some("/Projects/Edit".to_string())
         );
         assert_eq!(project_folder_from_path(""), None);
     }

@@ -476,11 +476,11 @@ mod tests {
         let historical_signature = request_signature(
             &request,
             &settings,
-            Some("D:\\archive\\2026-04-02\\video.mp4"),
+            Some("/archive/2026-04-02/video.mp4"),
         );
 
         assert_ne!(current_signature, historical_signature);
-        assert!(historical_signature.contains("d:\\archive\\2026-04-02"));
+        assert!(historical_signature.contains("/archive/2026-04-02"));
     }
 
     #[tokio::test]

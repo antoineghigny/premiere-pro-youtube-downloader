@@ -55,10 +55,6 @@ pub struct IntegrationActionResult {
 }
 
 pub fn run_startup_setup(state: &AppState) -> Result<(), String> {
-    if !cfg!(target_os = "windows") {
-        return Ok(());
-    }
-
     write_install_path_registry()?;
     if resolve_browser_source_dir(state).is_some() {
         let _ = sync_browser_addon(state)?;
@@ -87,10 +83,6 @@ pub fn integration_status(state: &AppState) -> IntegrationStatus {
 }
 
 pub fn install_premiere_panel(state: &AppState) -> Result<IntegrationActionResult, String> {
-    if !cfg!(target_os = "windows") {
-        return Err("Premiere setup is only available on Windows right now".to_string());
-    }
-
     write_install_path_registry()?;
     if should_enable_cep_debug_mode() {
         enable_cep_debug_mode()?;
@@ -137,10 +129,6 @@ pub fn install_premiere_panel(state: &AppState) -> Result<IntegrationActionResul
 }
 
 pub fn open_browser_setup(state: &AppState) -> Result<IntegrationActionResult, String> {
-    if !cfg!(target_os = "windows") {
-        return Err("Browser setup is only available on Windows right now".to_string());
-    }
-
     let copied = sync_browser_addon(state)?;
     let target_dir = browser_addon_target_dir()?;
     open_directory(&target_dir)?;
@@ -576,111 +564,155 @@ fn open_directory(path: &Path) -> Result<(), String> {
 }
 
 fn detect_premiere_installed() -> bool {
-    if !cfg!(target_os = "windows") {
-        return false;
-    }
-
     if premiere::is_premiere_running() {
         return true;
     }
 
-    if let Some(program_files) = env::var_os("ProgramFiles") {
-        let adobe_dir = PathBuf::from(program_files).join("Adobe");
+    if cfg!(target_os = "windows") {
+        if let Some(program_files) = env::var_os("ProgramFiles") {
+            let adobe_dir = PathBuf::from(program_files).join("Adobe");
+            if let Ok(entries) = fs::read_dir(adobe_dir) {
+                if entries.flatten().any(|entry| {
+                    entry.path().is_dir()
+                        && entry
+                            .file_name()
+                            .to_string_lossy()
+                            .starts_with("Adobe Premiere Pro")
+                }) {
+                    return true;
+                }
+            }
+        }
+
+        return registry_contains(
+            r"HKLM\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+            "Adobe Premiere Pro",
+        ) || registry_contains(
+            r"HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+            "Adobe Premiere Pro",
+        );
+    }
+
+    if cfg!(target_os = "macos") {
+        let adobe_dir = PathBuf::from("/Applications");
         if let Ok(entries) = fs::read_dir(adobe_dir) {
             if entries.flatten().any(|entry| {
                 entry.path().is_dir()
                     && entry
                         .file_name()
                         .to_string_lossy()
-                        .starts_with("Adobe Premiere Pro")
+                        .to_lowercase()
+                        .starts_with("adobe premiere pro")
             }) {
                 return true;
             }
         }
     }
 
-    registry_contains(
-        r"HKLM\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
-        "Adobe Premiere Pro",
-    ) || registry_contains(
-        r"HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall",
-        "Adobe Premiere Pro",
-    )
+    false
 }
 
 fn detect_chrome_executable() -> Option<PathBuf> {
-    if !cfg!(target_os = "windows") {
-        return None;
-    }
-
-    if let Some(path) = query_registry_value(
-        r"HKLM\Software\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe",
-        None,
-    ) {
-        let candidate = PathBuf::from(path);
-        if candidate.exists() {
-            return Some(candidate);
+    if cfg!(target_os = "windows") {
+        if let Some(path) = query_registry_value(
+            r"HKLM\Software\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe",
+            None,
+        ) {
+            let candidate = PathBuf::from(path);
+            if candidate.exists() {
+                return Some(candidate);
+            }
         }
-    }
 
-    let candidates = [
-        env::var_os("LOCALAPPDATA").map(PathBuf::from).map(|base| {
-            base.join("Google")
-                .join("Chrome")
-                .join("Application")
-                .join("chrome.exe")
-        }),
-        env::var_os("ProgramFiles").map(PathBuf::from).map(|base| {
-            base.join("Google")
-                .join("Chrome")
-                .join("Application")
-                .join("chrome.exe")
-        }),
-        env::var_os("ProgramFiles(x86)")
-            .map(PathBuf::from)
-            .map(|base| {
+        let candidates = [
+            env::var_os("LOCALAPPDATA").map(PathBuf::from).map(|base| {
                 base.join("Google")
                     .join("Chrome")
                     .join("Application")
                     .join("chrome.exe")
             }),
-    ];
+            env::var_os("ProgramFiles").map(PathBuf::from).map(|base| {
+                base.join("Google")
+                    .join("Chrome")
+                    .join("Application")
+                    .join("chrome.exe")
+            }),
+            env::var_os("ProgramFiles(x86)")
+                .map(PathBuf::from)
+                .map(|base| {
+                    base.join("Google")
+                        .join("Chrome")
+                        .join("Application")
+                        .join("chrome.exe")
+                }),
+        ];
 
-    candidates
-        .into_iter()
-        .flatten()
-        .find(|candidate| candidate.exists())
+        return candidates
+            .into_iter()
+            .flatten()
+            .find(|candidate| candidate.exists());
+    }
+
+    if cfg!(target_os = "macos") {
+        let candidates: [Option<PathBuf>; 2] = [
+            Some(
+                PathBuf::from("/Applications/Google Chrome.app")
+                    .join("Contents")
+                    .join("MacOS")
+                    .join("Google Chrome"),
+            ),
+            env::var_os("HOME").map(|home| {
+                PathBuf::from(home)
+                    .join("Applications")
+                    .join("Google Chrome.app")
+                    .join("Contents")
+                    .join("MacOS")
+                    .join("Google Chrome")
+            }),
+        ];
+
+        return candidates.into_iter().flatten().find(|c| c.exists());
+    }
+
+    None
 }
 
 fn open_chrome_extensions() -> bool {
-    if !cfg!(target_os = "windows") {
-        return false;
-    }
+    if cfg!(target_os = "windows") {
+        if let Some(chrome_executable) = detect_chrome_executable() {
+            let mut command = Command::new(chrome_executable);
+            if hide_windows_console(
+                command
+                    .args(["--new-tab", "chrome://extensions"])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null()),
+            )
+                .spawn()
+                .is_ok()
+            {
+                return true;
+            }
+        }
 
-    if let Some(chrome_executable) = detect_chrome_executable() {
-        let mut command = Command::new(chrome_executable);
-        if hide_windows_console(
+        let mut command = Command::new("cmd");
+        hide_windows_console(
             command
-                .args(["--new-tab", "chrome://extensions"])
+                .args(["/C", "start", "", "chrome://extensions"])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null()),
         )
             .spawn()
             .is_ok()
-        {
-            return true;
-        }
-    }
-
-    let mut command = Command::new("cmd");
-    hide_windows_console(
-        command
-            .args(["/C", "start", "", "chrome://extensions"])
+    } else if cfg!(target_os = "macos") {
+        Command::new("open")
+            .arg("chrome://extensions")
             .stdout(Stdio::null())
-            .stderr(Stdio::null()),
-    )
-        .spawn()
-        .is_ok()
+            .stderr(Stdio::null())
+            .spawn()
+            .is_ok()
+    } else {
+        false
+    }
 }
 
 fn write_install_path_registry() -> Result<(), String> {
