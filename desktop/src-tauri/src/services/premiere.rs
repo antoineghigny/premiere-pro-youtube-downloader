@@ -1,6 +1,8 @@
 use std::{
     path::{Path, PathBuf},
     process::Command,
+    sync::{Mutex, OnceLock},
+    time::{Duration, Instant},
 };
 
 use reqwest::StatusCode;
@@ -65,17 +67,43 @@ impl ProjectFolderError {
     }
 }
 
+// Process enumeration is expensive and /premiere-status is polled every few
+// seconds by both the desktop UI and the CEP panel, so cache the result briefly.
+static PREMIERE_RUNNING_CACHE: Mutex<Option<(Instant, bool)>> = Mutex::new(None);
+const PREMIERE_RUNNING_CACHE_TTL: Duration = Duration::from_secs(5);
+
 pub fn is_premiere_running() -> bool {
-    let mut system = System::new_all();
+    let mut cache = PREMIERE_RUNNING_CACHE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    if let Some((checked_at, running)) = *cache {
+        if checked_at.elapsed() < PREMIERE_RUNNING_CACHE_TTL {
+            return running;
+        }
+    }
+
+    let mut system = System::new();
     system.refresh_processes(ProcessesToUpdate::All, true);
 
-    system.processes().values().any(|process| {
+    let running = system.processes().values().any(|process| {
         process
             .name()
             .to_string_lossy()
             .to_ascii_lowercase()
             .contains("adobe premiere pro")
-    })
+    });
+
+    *cache = Some((Instant::now(), running));
+    running
+}
+
+/// Async wrapper that keeps the (blocking) process enumeration off the tokio
+/// worker threads when the cache is cold.
+pub async fn is_premiere_running_async() -> bool {
+    tokio::task::spawn_blocking(is_premiere_running)
+        .await
+        .unwrap_or(false)
 }
 
 fn project_info_script() -> &'static str {
@@ -124,7 +152,13 @@ async fn eval_in_premiere(state: &AppState, script: &str) -> Result<String, Stri
         .active_cep_port()
         .ok_or_else(|| "Open the YT2Premiere panel in Premiere".to_string())?;
 
-    let client = reqwest::Client::new();
+    static CEP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    let client = CEP_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .expect("default reqwest client configuration is valid")
+    });
     let response = client
         .post(format!("http://127.0.0.1:{cep_port}/"))
         .header("X-YT2PP-CEP-Token", state.auth.cep_token())
@@ -132,12 +166,16 @@ async fn eval_in_premiere(state: &AppState, script: &str) -> Result<String, Stri
         .send()
         .await
         .map_err(|error| {
-            state.clear_cep_port();
+            // Only drop the registration when the panel is actually gone;
+            // transient timeouts must not flap the connection status. The
+            // heartbeat TTL handles stale registrations anyway.
+            if error.is_connect() {
+                state.clear_cep_port();
+            }
             format!("Could not reach Premiere: {}", error)
         })?;
 
     if response.status() != StatusCode::OK {
-        state.clear_cep_port();
         return Err(format!(
             "Premiere did not accept the request ({})",
             response.status()
@@ -151,7 +189,7 @@ async fn eval_in_premiere(state: &AppState, script: &str) -> Result<String, Stri
 }
 
 pub async fn query_project_info(state: &AppState) -> Result<PremiereProjectInfo, ProjectFolderError> {
-    if !is_premiere_running() {
+    if !is_premiere_running_async().await {
         return Err(ProjectFolderError::PremiereNotRunning);
     }
 
@@ -187,7 +225,7 @@ fn project_folder_from_path(project_path: &str) -> Option<String> {
 }
 
 pub async fn premiere_status(state: &AppState) -> PremiereStatusSnapshot {
-    let running = is_premiere_running();
+    let running = is_premiere_running_async().await;
     let cep_registered = state.active_cep_port().is_some();
 
     if !running {
@@ -280,7 +318,7 @@ pub async fn import_to_premiere(state: &AppState, path: &Path) -> Result<(), Str
         return Err(format!("Output file does not exist: {}", path.display()));
     }
 
-    if !is_premiere_running() {
+    if !is_premiere_running_async().await {
         return Ok(());
     }
 

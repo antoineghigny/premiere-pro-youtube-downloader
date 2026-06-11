@@ -421,7 +421,10 @@ pub async fn serve(state: AppState) -> Result<(), String> {
             cors::enforce_request_origin,
         ))
         .layer(middleware::from_fn_with_state(
-            rate_limiter.clone(),
+            crate::rate_limit::RateLimitState {
+                limiter: rate_limiter.clone(),
+                app: state.clone(),
+            },
             crate::rate_limit::rate_limit_middleware,
         ))
         .layer(middleware::from_fn(request_logger::request_logging_middleware))

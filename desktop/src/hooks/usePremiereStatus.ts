@@ -37,7 +37,7 @@ export function usePremiereStatus() {
             projectPath: undefined,
             projectFolder: undefined,
             canImport: false,
-            reason: 'Premiere is not running',
+            reason: 'Reconnecting to the desktop backend',
           });
         }
       } finally {

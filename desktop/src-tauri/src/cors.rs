@@ -124,13 +124,26 @@ fn is_trusted_extension_id(extension_id: &str) -> bool {
             .any(|candidate| candidate == normalized)
 }
 
-fn has_valid_token(request: &Request<Body>, header_name: &str, expected: &str) -> bool {
-    request
-        .headers()
-        .get(header_name)
-        .and_then(|value| value.to_str().ok())
-        .map(|value| value == expected)
-        .unwrap_or(false)
+/// Constant-time string comparison so token checks do not leak length or
+/// prefix information through timing.
+fn constant_time_eq(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    let mut diff = left.len() ^ right.len();
+    for index in 0..left.len().min(right.len()) {
+        diff |= usize::from(left[index] ^ right[index]);
+    }
+    diff == 0
+}
+
+pub(crate) fn has_valid_token<B>(request: &Request<B>, header_name: &str, expected: &str) -> bool {
+    !expected.is_empty()
+        && request
+            .headers()
+            .get(header_name)
+            .and_then(|value| value.to_str().ok())
+            .map(|value| constant_time_eq(value, expected))
+            .unwrap_or(false)
 }
 
 fn trusted_extension_request(request: &Request<Body>) -> bool {

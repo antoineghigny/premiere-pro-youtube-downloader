@@ -38,7 +38,10 @@ pub fn rate_limit_max_requests() -> u64 {
     std::env::var("YT2PP_RATE_LIMIT_MAX")
         .ok()
         .and_then(|value| value.parse().ok())
-        .unwrap_or(100)
+        // The browser extension legitimately polls /active-downloads at 750ms
+        // (80 req/min) plus health probes across the port range, so 100/min
+        // caused throttling during normal use.
+        .unwrap_or(300)
 }
 
 #[cfg(target_os = "windows")]

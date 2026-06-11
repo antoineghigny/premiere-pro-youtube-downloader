@@ -12,7 +12,16 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
+use crate::server::AppState;
 use crate::utils::{rate_limit_window_secs, rate_limit_max_requests};
+
+/// State for the rate limit middleware: the limiter plus the app state needed
+/// to recognize authenticated local clients (desktop UI and Premiere panel).
+#[derive(Clone)]
+pub struct RateLimitState {
+    pub limiter: std::sync::Arc<tokio::sync::Mutex<RateLimiter>>,
+    pub app: AppState,
+}
 
 /// Tracks request counts per client
 #[derive(Debug, Default)]
@@ -129,15 +138,27 @@ fn extract_client_id<B>(request: &Request<B>) -> String {
 }
 
 pub async fn rate_limit_middleware(
-    State(limiter): State<std::sync::Arc<tokio::sync::Mutex<RateLimiter>>>,
+    State(state): State<RateLimitState>,
     request: Request<Body>,
     next: Next,
 ) -> Response {
+    // Authenticated local clients (desktop UI and Premiere CEP panel) hold a
+    // per-session token and poll continuously; throttling them makes the app
+    // flap between online and offline. Only unauthenticated traffic is limited.
+    if crate::cors::has_valid_token(
+        &request,
+        "x-yt2pp-desktop-token",
+        state.app.auth.desktop_token(),
+    ) || crate::cors::has_valid_token(&request, "x-yt2pp-cep-token", state.app.auth.cep_token())
+    {
+        return next.run(request).await;
+    }
+
     let client_id = extract_client_id(&request);
 
     // Check rate limit
     {
-        let mut limiter_guard = limiter.lock().await;
+        let mut limiter_guard = state.limiter.lock().await;
         if limiter_guard.check(&client_id).is_err() {
             let retry_after = rate_limit_window_secs();
             tracing::warn!(

@@ -542,7 +542,7 @@ pub async fn process_download(
         .import_to_premiere
         .or(request.ffmpeg.import_to_premiere)
         .unwrap_or(settings.default_import_to_premiere);
-    if should_import && premiere::is_premiere_running() && state.active_cep_port().is_some() {
+    if should_import && premiere::is_premiere_running_async().await && state.active_cep_port().is_some() {
         state.emit_progress(
             &request_id,
             DownloadStage::Importing,
@@ -561,9 +561,10 @@ pub async fn process_download(
             );
         }
     } else if should_import {
+        let premiere_running = premiere::is_premiere_running_async().await;
         tracing::info!(
             request_id = %request_id,
-            premiere_running = premiere::is_premiere_running(),
+            premiere_running = premiere_running,
             cep_registered = state.active_cep_port().is_some(),
             "Premiere import skipped because the bridge is unavailable"
         );
